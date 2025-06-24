@@ -35,7 +35,8 @@ class Tenant extends Authenticatable implements FilamentUser
 
     protected $casts = ['password' => 'hashed'];
 
-    public function canAccessPanel(Panel $panel): bool
+
+     public function canAccessPanel(Panel $panel): bool
     {
         // Only apply this logic to the 'app' panel
         if ($panel->getId() === 'app') {
@@ -43,16 +44,15 @@ class Tenant extends Authenticatable implements FilamentUser
             // 1. Has a status of 'active'.
             // 2. Has an end_date that is today or in the future.
             return $this->subscriptions()
-                ->where('status', 'active')
+                ->where('status', true)
                 ->where('end_date', '>=', now()->toDateString())
                 ->exists();
         }
 
-        // By default, deny access to any other panels (like the admin panel)
         return false;
     }
 
-   
+
     public function marketingAgent(): BelongsTo
     {
         return $this->belongsTo(MarketingAgent::class);
@@ -68,6 +68,6 @@ class Tenant extends Authenticatable implements FilamentUser
     // if it can't find 'entity_name'.
     public function getFilamentName(): string
     {
-        return $this->company_name;
+        return $this->company_name ?? $this->manager_name ?? $this->manager_email;
     }
 }

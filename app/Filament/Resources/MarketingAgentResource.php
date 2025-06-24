@@ -14,6 +14,9 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
+// Import the Wizard component for a better UI
+use Filament\Forms\Components\Wizard;
+
 class MarketingAgentResource extends Resource
 {
     protected static ?string $model = MarketingAgent::class;
@@ -24,60 +27,95 @@ class MarketingAgentResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Section::make('Company Information')->schema([
-                Forms\Components\TextInput::make('company_name')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('company_registration_number')
-                    ->label('Registration Number')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('company_vat_number')
-                    ->label('VAT Number')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('company_email')
-                    ->label('Company Email')
-                    ->email()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('company_phone')
-                    ->label('Company Phone')
-                    ->tel()
-                    ->maxLength(255),
-                Forms\Components\Textarea::make('company_address')
-                    ->label('Company Address')
-                    ->columnSpanFull(),
-            ])->columns(2),
-
-            Forms\Components\Section::make('Manager Information')->schema([
-                Forms\Components\TextInput::make('manager_name')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('manager_email')
-                    ->email()
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('manager_phone')
-                    ->tel()
-                    ->required()
-                    ->maxLength(255),
-            ])->columns(2),
-
-            Forms\Components\Section::make('Lead Source')->schema([
-                Forms\Components\Select::make('lead_source_id')
-                    ->relationship('leadSource', 'name') // 'name' is a placeholder
-                    // This closure intelligently finds the right display name
-                    ->getOptionLabelFromRecordUsing(
-                        fn(LeadSource $record) => $record->type === 'company'
-                            ? $record->company_name
-                            : $record->name
-                    )
-                    ->searchable([
-                        'name',
-                        'company_name',
-                        'email',
-                        'company_email',
+            // Replaced the separate sections with a clean, step-by-step Wizard
+            Wizard::make([
+                Wizard\Step::make('Company Information')
+                    ->description("Enter the details of the agent's company.")
+                    ->schema([
+                        Forms\Components\TextInput::make('company_name')
+                            ->required()
+                            ->placeholder('e.g., Global Marketing Solutions')
+                            ->prefixIcon('heroicon-o-building-office-2')
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make(
+                            'company_registration_number'
+                        )
+                            ->label('Registration Number')
+                            ->placeholder('e.g., 123456-7890')
+                            ->prefixIcon('heroicon-o-identification')
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('company_vat_number')
+                            ->label('VAT Number')
+                            ->placeholder('e.g., VAT123456789')
+                            ->prefixIcon('heroicon-o-receipt-percent')
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('company_email')
+                            ->label('Company Email')
+                            ->email()
+                            ->placeholder('e.g., contact@globalmarketing.com')
+                            ->prefixIcon('heroicon-o-envelope')
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('company_phone')
+                            ->label('Company Phone')
+                            ->tel()
+                            ->placeholder('e.g., +1 555-111-2222')
+                            ->prefixIcon('heroicon-o-phone')
+                            ->maxLength(255),
+                        Forms\Components\Textarea::make('company_address')
+                            ->label('Company Address')
+                            ->placeholder('123 Business Rd, Commerce City')
+                            ->columnSpanFull(),
                     ])
-                    ->preload()
-                    ->nullable(),
+                    ->columns(2),
+
+                Wizard\Step::make('Manager Information')
+                    ->description(
+                        'Provide the contact details for the primary manager.'
+                    )
+                    ->schema([
+                        Forms\Components\TextInput::make('manager_name')
+                            ->required()
+                            ->placeholder('e.g., Sarah Connor')
+                            ->prefixIcon('heroicon-o-user-circle')
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('manager_email')
+                            ->email()
+                            ->required()
+                            ->placeholder('e.g., s.connor@globalmarketing.com')
+                            ->prefixIcon('heroicon-o-envelope')
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('manager_phone')
+                            ->tel()
+                            ->required()
+                            ->placeholder('e.g., +1 555-333-4444')
+                            ->prefixIcon('heroicon-o-phone')
+                            ->maxLength(255),
+                    ])
+                    ->columns(2),
+
+                Wizard\Step::make('Lead Source')
+                    ->description(
+                        'Optionally, link this agent to the lead source that brought them in.'
+                    )
+                    ->schema([
+                        Forms\Components\Select::make('lead_source_id')
+                            ->relationship('leadSource', 'name')
+                            ->getOptionLabelFromRecordUsing(
+                                fn(
+                                    LeadSource $record
+                                ) => $record->type === 'company'
+                                    ? $record->company_name
+                                    : $record->name
+                            )
+                            ->searchable([
+                                'name',
+                                'company_name',
+                                'email',
+                                'company_email',
+                            ])
+                            ->preload()
+                            ->nullable(),
+                    ]),
             ]),
         ]);
     }
@@ -93,7 +131,6 @@ class MarketingAgentResource extends Resource
                 Tables\Columns\TextColumn::make('manager_phone')->searchable(),
                 Tables\Columns\TextColumn::make('leadSource.name')
                     ->label('Lead Source')
-                    // Use getStateUsing for Filament v2 to avoid issues with nulls
                     ->getStateUsing(function (MarketingAgent $record) {
                         if (!$record->leadSource) {
                             return 'N/A';
@@ -115,7 +152,7 @@ class MarketingAgentResource extends Resource
                 //
             ])
             ->actions([
-               Tables\Actions\ViewAction::make()
+                Tables\Actions\ViewAction::make()
                     ->icon('heroicon-o-magnifying-glass')
                     ->iconButton()
                     ->color('primary')
@@ -130,15 +167,15 @@ class MarketingAgentResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->defaultSort('created_at', 'desc');
     }
 
     public static function getRelations(): array
     {
         return [
-            // To show the tenants related to this agent, create a relation manager:
-            // php artisan make:filament-relation-manager MarketingAgentResource tenants name
-        ];
+                //
+            ];
     }
 
     public static function getPages(): array

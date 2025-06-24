@@ -41,9 +41,9 @@ return [
             'provider' => 'users',
         ],
 
-        'tenant' => [
-        'driver' => 'session',
-        'provider' => 'tenants', 
+         'tenant' => [
+            'driver' => 'session',
+            'provider' => 'tenants',
         ],
     ],
 
@@ -71,8 +71,8 @@ return [
         ],
 
         'tenants' => [
-        'driver' => 'eloquent',
-        'model' => App\Models\Tenant::class,
+            'driver' => 'eloquent',
+            'model' => App\Models\Tenant::class, 
         ],
     ],
 
