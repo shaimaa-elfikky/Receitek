@@ -34,13 +34,13 @@ class PlanResource extends Resource
                     ->required()
                     ->numeric()
                     ->prefix('SAR'),
-                Forms\Components\TextInput::make('default_max_invoices')
+                Forms\Components\TextInput::make('max_invoices_yearly')
                     ->required()
                     ->numeric()
                     ->default(100),
-                Forms\Components\TextInput::make('default_max_users')
+                Forms\Components\TextInput::make('max_users')
                     ->required()
-                                        ->numeric()
+                    ->numeric()
                     ->default(1),
                 Forms\Components\Toggle::make('status')
                     ->required()
@@ -56,8 +56,8 @@ class PlanResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')->searchable(),
                 Tables\Columns\TextColumn::make('price')->money('SAR'),
-                Tables\Columns\TextColumn::make('default_max_invoices'),
-                Tables\Columns\TextColumn::make('default_max_users'),
+                Tables\Columns\TextColumn::make('max_invoices_yearly'),
+                Tables\Columns\TextColumn::make('max_users'),
                 Tables\Columns\IconColumn::make('status')
                     ->boolean()
                     ->trueIcon('heroicon-o-check-badge')

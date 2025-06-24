@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\MarketingAgent;
 use App\Models\Subscription;
 use Filament\Models\Contracts\FilamentUser;
+use Filament\Models\Contracts\HasName;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-class Tenant extends Authenticatable implements FilamentUser
+class Tenant extends Authenticatable implements FilamentUser , HasName
 {
     use HasFactory, Notifiable;
 
@@ -37,22 +38,15 @@ class Tenant extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-        // Only apply this logic to the 'app' panel
         if ($panel->getId() === 'app') {
-            // The tenant must have at least one subscription that is:
-            // 1. Has a status of 'active'.
-            // 2. Has an end_date that is today or in the future.
             return $this->subscriptions()
-                ->where('status', 'active')
+                ->where('status', 1)
                 ->where('end_date', '>=', now()->toDateString())
                 ->exists();
         }
-
-        // By default, deny access to any other panels (like the admin panel)
         return false;
     }
 
-   
     public function marketingAgent(): BelongsTo
     {
         return $this->belongsTo(MarketingAgent::class);
@@ -63,11 +57,12 @@ class Tenant extends Authenticatable implements FilamentUser
         return $this->hasMany(Subscription::class);
     }
 
-    // Note: Your getFilamentName() method references 'entity_name', which is not
-    // in your $fillable array. Filament will likely use 'company_name' by default
-    // if it can't find 'entity_name'.
+    /**
+     * This is the corrected method.
+     * It ensures a name is always returned, preventing the error.
+     */
     public function getFilamentName(): string
     {
-        return $this->company_name;
+        return $this->company_name ?? $this->manager_name ?? $this->manager_email;
     }
 }
