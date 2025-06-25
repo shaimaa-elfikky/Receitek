@@ -10,8 +10,8 @@ class CreateClient extends CreateRecord
     protected static string $resource = ClientResource::class;
 
     protected function mutateFormDataBeforeCreate(array $data): array
-    {
-        $data['tenant_id'] = auth()->user()->id;
-        return $data;
-    }
+        {
+            $data['tenant_id'] = auth()->user()->id;
+            return $data;
+        }
 }
