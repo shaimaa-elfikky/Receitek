@@ -18,8 +18,9 @@ class Product extends Model implements HasName
         'description',
         'sku',
         'price',
-        'quantity',
         'is_active',
+        'vat',
+        'vat_included',
     ];
 
     protected $casts = [

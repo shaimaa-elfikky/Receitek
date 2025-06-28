@@ -38,9 +38,16 @@ class ServiceResource extends Resource
                     ->required()
                     ->numeric()
                     ->prefix('SAR'), // Or your currency
-                Forms\Components\TextInput::make('duration')
-                    ->label('Pricing Model (e.g., Per Hour, Per Project)')
-                    ->maxLength(255),
+                Forms\Components\Select::make('vat')
+                    ->label('VAT Rate')
+                    ->options([
+                        '15' => '15%',
+                        '0' => '0%',
+                        'exempt' => 'Exempt from VAT',
+                    ])
+                    ->required(),
+                Forms\Components\Toggle::make('vat_included')
+                    ->label('Price includes VAT'),
             ])->columns(2),
             Forms\Components\Section::make('Organization')->schema([
                 // This Select is scoped to only show the tenant's own categories.
@@ -72,7 +79,6 @@ class ServiceResource extends Resource
                 Tables\Columns\TextColumn::make('price')
                     ->money('SAR') // Or your currency
                     ->sortable(),
-                Tables\Columns\TextColumn::make('duration'),
                 Tables\Columns\ToggleColumn::make('is_active')->label(
                     'Active'
                 ),

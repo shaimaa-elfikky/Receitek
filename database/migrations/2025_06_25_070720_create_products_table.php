@@ -21,7 +21,8 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->string('sku')->nullable()->comment('Stock Keeping Unit');
             $table->decimal('price', 10, 2)->default(0.0);
-            $table->unsignedInteger('quantity')->default(0);
+            $table->string('vat');
+            $table->boolean('vat_included')->default(false);
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });

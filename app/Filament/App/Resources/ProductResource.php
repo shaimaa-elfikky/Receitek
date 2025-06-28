@@ -38,10 +38,16 @@ class ProductResource extends Resource
                     ->required()
                     ->numeric()
                     ->prefix('SAR'), // Or your currency
-                Forms\Components\TextInput::make('quantity')
-                    ->required()
-                    ->numeric()
-                    ->default(0),
+                Forms\Components\Select::make('vat')
+                    ->label('VAT Rate')
+                    ->options([
+                        '15' => '15%',
+                        '0' => '0%',
+                        'exempt' => 'Exempt from VAT',
+                    ])
+                    ->required(),
+                Forms\Components\Toggle::make('vat_included')
+                    ->label('Price includes VAT'),
                 Forms\Components\TextInput::make('sku')
                     ->label('SKU (Stock Keeping Unit)')
                     ->maxLength(255),
@@ -78,7 +84,6 @@ class ProductResource extends Resource
                 Tables\Columns\TextColumn::make('price')
                     ->money('SAR') // Or your currency
                     ->sortable(),
-                Tables\Columns\TextColumn::make('quantity'),
                 Tables\Columns\ToggleColumn::make('is_active')->label(
                     'Active'
                 ),

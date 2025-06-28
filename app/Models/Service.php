@@ -17,8 +17,9 @@ class Service extends Model implements HasName
         'name',
         'description',
         'price',
-        'duration',
         'is_active',
+        'vat',
+        'vat_included',
     ];
 
     protected $casts = [

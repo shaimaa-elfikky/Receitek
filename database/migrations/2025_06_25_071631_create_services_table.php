@@ -21,8 +21,8 @@ return new class extends Migration
             $table->string('name');
             $table->text('description')->nullable();
             $table->decimal('price', 10, 2)->default(0.0);
-            // A field to describe the pricing model, e.g., "Per Hour", "One-time"
-            $table->string('duration')->nullable();
+            $table->string('vat');
+            $table->boolean('vat_included')->default(false);
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
