@@ -7,21 +7,7 @@ use Illuminate\Support\Facades\Auth;
 
 class CreditNoteService
 {
-    /**
-     * Generate a unique credit note number
-     */
-    public function generateCreditNoteNumber(): string
-    {
-        $year = date('Y');
-        $lastCreditNote = CreditNote::where('tenant_id', Auth::user()->id)
-            ->whereYear('created_at', $year)
-            ->orderBy('id', 'desc')
-            ->first();
 
-        $sequence = $lastCreditNote ? (int)substr($lastCreditNote->credit_note_number, -4) + 1 : 1;
-
-        return 'CN-' . $year . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
-    }
 
     /**
      * Calculate the total available credit for a client
