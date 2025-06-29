@@ -17,6 +17,8 @@ class Product extends Model implements HasName
         'name',
         'description',
         'sku',
+        'code',
+        'serial_number',
         'price',
         'is_active',
         'vat',
@@ -28,27 +30,26 @@ class Product extends Model implements HasName
         'price' => 'decimal:2',
     ];
 
-    /**
-     * Defines the relationship to the Tenant that owns this product.
-     */
+  
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
     }
 
-    /**
-     * Defines the relationship to the Category this product belongs to.
-     */
+
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
     }
 
-    /**
-     * Tells Filament how to get a display name for this model.
-     */
+
     public function getFilamentName(): string
     {
         return $this->name;
+    }
+
+    public function serials()
+    {
+        return $this->hasMany(ProductSerial::class);
     }
 }

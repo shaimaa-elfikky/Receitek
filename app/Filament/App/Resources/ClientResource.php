@@ -20,7 +20,8 @@ class ClientResource extends Resource
     protected static ?string $model = Client::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
-    
+    protected static ?string $navigationGroup = 'Client Management';
+
 
     // --- MULTI-TENANCY PART 1: Automatically set tenant_id on creation ---
     public static function form(Form $form): Form
@@ -33,7 +34,7 @@ class ClientResource extends Resource
                         'B2B' => 'Business (B2B)',
                     ])
                     ->required()
-                    ->live(), 
+                    ->live(),
             ]),
 
             Forms\Components\Section::make('Client Details')->schema([

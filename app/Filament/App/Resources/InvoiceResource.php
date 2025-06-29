@@ -22,6 +22,7 @@ class InvoiceResource extends Resource
 {
     protected static ?string $model = Invoice::class;
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
+    protected static ?string $navigationGroup = 'Invoice Management';
 
     public static function form(Form $form): Form
     {
@@ -74,6 +75,8 @@ class InvoiceResource extends Resource
                                             $set('vat_rate', null);
                                             $set('product_id', null);
                                             $set('service_id', null);
+                                            $set('vat_included', false);
+                                            $set('vat_included_value', false);
                                             self::updateTotals($get, $set);
                                             return;
                                         }
@@ -86,6 +89,8 @@ class InvoiceResource extends Resource
                                                 $set('vat_rate', $model->vat);
                                                 $set('product_id', $id);
                                                 $set('service_id', null);
+                                                $set('vat_included', $model->vat_included);
+                                                $set('vat_included_value', $model->vat_included);
                                             } else {
                                                 // Clear if not found
                                                 $set('description', null);
@@ -93,6 +98,8 @@ class InvoiceResource extends Resource
                                                 $set('vat_rate', null);
                                                 $set('product_id', null);
                                                 $set('service_id', null);
+                                                $set('vat_included', false);
+                                                $set('vat_included_value', false);
                                             }
                                         } elseif ($type === 'service' && is_numeric($id)) {
                                             $model = \App\Models\Service::find($id);
@@ -102,6 +109,8 @@ class InvoiceResource extends Resource
                                                 $set('vat_rate', $model->vat);
                                                 $set('service_id', $id);
                                                 $set('product_id', null);
+                                                $set('vat_included', $model->vat_included);
+                                                $set('vat_included_value', $model->vat_included);
                                             } else {
                                                 // Clear if not found
                                                 $set('description', null);
@@ -109,6 +118,8 @@ class InvoiceResource extends Resource
                                                 $set('vat_rate', null);
                                                 $set('product_id', null);
                                                 $set('service_id', null);
+                                                $set('vat_included', false);
+                                                $set('vat_included_value', false);
                                             }
                                         } else {
                                             // Clear if not a valid type/id
@@ -117,6 +128,8 @@ class InvoiceResource extends Resource
                                             $set('vat_rate', null);
                                             $set('product_id', null);
                                             $set('service_id', null);
+                                            $set('vat_included', false);
+                                            $set('vat_included_value', false);
                                         }
                                         self::updateTotals($get, $set);
                                     })
@@ -129,6 +142,8 @@ class InvoiceResource extends Resource
                                 Forms\Components\Hidden::make('vat_rate'),
                                 Forms\Components\TextInput::make('quantity')->required()->numeric()->default(1)->live()->columnSpan(2),
                                 Forms\Components\TextInput::make('unit_price')->label('Unit Price')->required()->numeric()->live()->columnSpan(2),
+                                Forms\Components\Toggle::make('vat_included')->label('VAT Included')->disabled()->live()->columnSpan(2),
+                                Forms\Components\Hidden::make('vat_included_value'),
                                 Forms\Components\TextInput::make('discount_percentage')->label('Discount (%)')->numeric()->default(0)->live()->columnSpan(2),
                                 Forms\Components\Placeholder::make('total')->label('Line Total')->content(fn(Get $get) => number_format(($get('quantity') * $get('unit_price')) - (($get('quantity') * $get('unit_price')) * ($get('discount_percentage') / 100)), 2))->columnSpan(2),
                             ]),
@@ -140,12 +155,11 @@ class InvoiceResource extends Resource
             ])->columnSpan(['lg' => 2]),
 
             Forms\Components\Group::make()->schema([
-                Forms\Components\Section::make('Status & Totals')->schema([
-                    Forms\Components\Select::make('status')->options(['unpaid' => 'Unpaid', 'prepaid' => 'Pre-Paid', 'paid' => 'Paid'])->default('unpaid')->required(),
+                Forms\Components\Section::make('Totals')->schema([
                     Forms\Components\TextInput::make('subtotal')->label('Sub Total')->numeric()->readOnly(),
                     Forms\Components\TextInput::make('total_discount')->label('Total Discount')->numeric()->readOnly(),
                     Forms\Components\TextInput::make('subtotal')->label('Taxable Amount')->numeric()->readOnly(),
-                    Forms\Components\TextInput::make('total_tax')->label('Total VAT')->numeric()->readOnly(),
+                    Forms\Components\TextInput::make('tax_amount')->label('Total VAT')->numeric()->readOnly(),
                     Forms\Components\TextInput::make('total')->numeric()->readOnly(),
                 ]),
                 Forms\Components\Section::make('Notes')->schema([Forms\Components\Textarea::make('notes'), Forms\Components\Textarea::make('terms')]),
@@ -160,9 +174,6 @@ class InvoiceResource extends Resource
             Tables\Columns\TextColumn::make('client.name_en')->label('Client'),
             Tables\Columns\TextColumn::make('total')->money('SAR'),
             Tables\Columns\TextColumn::make('issue_date')->date(),
-            Tables\Columns\TextColumn::make('status')->badge()->color(fn(string $state): string => match ($state) {
-                'unpaid' => 'warning', 'prepaid' => 'info', 'paid' => 'success',default =>'unpaid',
-            }),
         ])->defaultSort('issue_date', 'desc');
     }
 
@@ -174,7 +185,7 @@ class InvoiceResource extends Resource
 
         $set('subtotal', number_format($totals['subtotal'], 2, '.', ''));
         $set('total_discount', number_format($totals['total_discount'], 2, '.', ''));
-        $set('total_tax', number_format($totals['total_tax'], 2, '.', ''));
+        $set('tax_amount', number_format($totals['total_tax'], 2, '.', ''));
         $set('total', number_format($totals['total'], 2, '.', ''));
     }
 
@@ -188,7 +199,7 @@ class InvoiceResource extends Resource
         return [
             'index' => Pages\ListInvoices::route('/'),
             'create' => Pages\CreateInvoice::route('/create'),
-        
+
         ];
     }
 }

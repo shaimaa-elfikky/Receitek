@@ -16,4 +16,13 @@ class EditProduct extends EditRecord
             Actions\DeleteAction::make(),
         ];
     }
+
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+      
+        $data['serial_numbers'] = $this->record->serials()->pluck('serial_number')->implode(', ');
+
+        return $data;
+    }
+
 }

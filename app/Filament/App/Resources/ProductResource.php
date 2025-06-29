@@ -26,18 +26,23 @@ class ProductResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Section::make('Product Details')->schema([
+            Forms\Components\Section::make('Product & Category')->schema([
                 Forms\Components\TextInput::make('name')
                     ->required()
                     ->maxLength(255),
-                Forms\Components\Textarea::make('description')
-                    ->columnSpanFull(),
-            ]),
+                Forms\Components\Select::make('category_id')
+                    ->label('Category')
+                    ->options(
+                        Category::where('tenant_id', auth()->user()->id)
+                        ->pluck('name', 'id')
+                    )
+                    ->searchable(),
+            ])->columns(2),
             Forms\Components\Section::make('Pricing & Stock')->schema([
                 Forms\Components\TextInput::make('price')
                     ->required()
                     ->numeric()
-                    ->prefix('SAR'), // Or your currency
+                    ->prefix('SAR'),
                 Forms\Components\Select::make('vat')
                     ->label('VAT Rate')
                     ->options([
@@ -48,21 +53,24 @@ class ProductResource extends Resource
                     ->required(),
                 Forms\Components\Toggle::make('vat_included')
                     ->label('Price includes VAT'),
+            ])->columns(3),
+            Forms\Components\Section::make('Product Serial')->schema([
+                Forms\Components\TextInput::make('code')
+                    ->label('Code')
+                    ->maxLength(255),
+                Forms\Components\TextInput::make('serial_numbers')
+                    ->label('Serial Numbers (Comma Separated)')
+                    ->required()
+                    ->helperText('Enter serial numbers separated by commas. Example: SN001, SN002, SN003')
+                    ->dehydrated(false),
                 Forms\Components\TextInput::make('sku')
                     ->label('SKU (Stock Keeping Unit)')
                     ->maxLength(255),
-            ])->columns(2),
+                ])->columns(3),
+
             Forms\Components\Section::make('Organization')->schema([
-                // THIS IS A CRITICAL SECURITY & USABILITY FEATURE
-                // It ensures that the dropdown only shows categories
-                // that belong to the currently logged-in tenant.
-                Forms\Components\Select::make('category_id')
-                    ->label('Category')
-                    ->options(
-                        Category::where('tenant_id', auth()->user()->id)
-                            ->pluck('name', 'id')
-                    )
-                    ->searchable(),
+                Forms\Components\Textarea::make('description')
+                    ->columnSpanFull(),
                 Forms\Components\Toggle::make('is_active')
                     ->label('Active')
                     ->required()
@@ -78,11 +86,15 @@ class ProductResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Code')
+                    ->sortable()
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('category.name')
                     ->sortable()
                     ->badge(),
                 Tables\Columns\TextColumn::make('price')
-                    ->money('SAR') // Or your currency
+                    ->money('SAR') 
                     ->sortable(),
                 Tables\Columns\ToggleColumn::make('is_active')->label(
                     'Active'

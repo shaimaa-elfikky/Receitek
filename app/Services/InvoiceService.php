@@ -23,10 +23,23 @@ class InvoiceService
             $lineTotal = ($item['quantity'] * $item['unit_price']);
             $discountAmount = $lineTotal * (($item['discount_percentage'] ?? 0) / 100);
             $priceAfterDiscount = $lineTotal - $discountAmount;
-            $taxPercentage = ($item['vat_rate'] === 'exempt' || $item['vat_rate'] === null) ? 0 : (float)$item['vat_rate'] / 100;
-            $taxAmount = $priceAfterDiscount * $taxPercentage;
             
-            $subTotal += $priceAfterDiscount;
+            $taxPercentage = ($item['vat_rate'] === 'exempt' || $item['vat_rate'] === null) ? 0 : (float)$item['vat_rate'] / 100;
+            
+            // Handle VAT included calculations
+            $vatIncluded = $item['vat_included_value'] ?? false;
+            
+            if ($vatIncluded) {
+                // If VAT is included, the unit price already contains VAT
+                // We need to calculate the VAT amount from the price after discount
+                $taxAmount = $priceAfterDiscount - ($priceAfterDiscount / (1 + $taxPercentage));
+                $subTotal += $priceAfterDiscount - $taxAmount; // Add price without VAT to subtotal
+            } else {
+                // If VAT is not included, add VAT on top
+                $taxAmount = $priceAfterDiscount * $taxPercentage;
+                $subTotal += $priceAfterDiscount; // Add full price to subtotal
+            }
+            
             $totalDiscount += $discountAmount;
             $totalTax += $taxAmount;
         }
@@ -66,6 +79,7 @@ class InvoiceService
                 'product_id' => $item->product_id,
                 'service_id' => $item->service_id,
                 'vat_rate' => $item->vat_rate,
+                'vat_included_value' => $item->product_id ? $item->product->vat_included : ($item->service_id ? $item->service->vat_included : false),
             ];
         }
         

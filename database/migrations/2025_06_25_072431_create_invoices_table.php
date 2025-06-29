@@ -19,7 +19,6 @@ return new class extends Migration
             $table->string('invoice_number')->unique();
             $table->date('issue_date');
             $table->date('due_date');
-            $table->string('status')->default('unpaid'); 
             $table->boolean('tax_included')->default(false);
 
             $table->decimal('subtotal', 10, 2);
