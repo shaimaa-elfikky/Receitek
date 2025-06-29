@@ -22,4 +22,6 @@ class Invoice extends Model
     public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
     public function client(): BelongsTo { return $this->belongsTo(Client::class); }
     public function items(): HasMany { return $this->hasMany(InvoiceItem::class); }
+    public function debitNotes(): HasMany { return $this->hasMany(DebitNote::class); }
+    public function creditNotes(): HasMany { return $this->hasMany(CreditNote::class); }
 }
