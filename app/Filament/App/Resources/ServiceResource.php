@@ -26,41 +26,43 @@ class ServiceResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Section::make('Service Details')->schema([
-                Forms\Components\TextInput::make('name')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\Select::make('category_id')
-                    ->label('Category')
-                    ->options(
-                        Category::where('tenant_id', auth()->user()->id)
-                            ->pluck('name', 'id')
-                    )
-                    ->searchable(),
-            ])->columns(2),
-            Forms\Components\Section::make('Pricing')->schema([
-                Forms\Components\TextInput::make('price')
-                    ->required()
-                    ->numeric()
-                    ->prefix('SAR'), 
-                Forms\Components\Select::make('vat')
-                    ->label('VAT Rate')
-                    ->options([
-                        '15' => '15%',
-                        '0' => '0%',
-                        'exempt' => 'Exempt from VAT',
-                    ])
-                    ->required(),
-                Forms\Components\Toggle::make('vat_included')
-                    ->label('Price includes VAT'),
-            ])->columns(2),
-            Forms\Components\Section::make('Organization')->schema([           
-                Forms\Components\Textarea::make('description')
-                    ->columnSpanFull(),
-                Forms\Components\Toggle::make('is_active')
-                    ->label('Active')
-                    ->required()
-                    ->default(true),
+            Forms\Components\Card::make([
+                Forms\Components\Section::make('Service Details')->schema([
+                    Forms\Components\TextInput::make('name')
+                        ->required()
+                        ->maxLength(255),
+                    Forms\Components\Select::make('category_id')
+                        ->label('Category')
+                        ->options(
+                            Category::where('tenant_id', auth()->user()->id)
+                                ->pluck('name', 'id')
+                        )
+                        ->searchable(),
+                ])->columns(2),
+                Forms\Components\Section::make('Pricing')->schema([
+                    Forms\Components\TextInput::make('price')
+                        ->required()
+                        ->numeric()
+                        ->prefix('SAR'),
+                    Forms\Components\Select::make('vat')
+                        ->label('VAT Rate')
+                        ->options([
+                            '15' => '15%',
+                            '0' => '0%',
+                            'exempt' => 'Exempt from VAT',
+                        ])
+                        ->required(),
+                    Forms\Components\Toggle::make('vat_included')
+                        ->label('Price includes VAT'),
+                ])->columns(2),
+                Forms\Components\Section::make('Organization')->schema([
+                    Forms\Components\Textarea::make('description')
+                        ->columnSpanFull(),
+                    Forms\Components\Toggle::make('is_active')
+                        ->label('Active')
+                        ->required()
+                        ->default(true),
+                ]),
             ]),
         ]);
     }

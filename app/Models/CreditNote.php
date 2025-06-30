@@ -17,10 +17,7 @@ class CreditNote extends Model
         'credit_note_number',
         'issue_date',
         'amount',
-        'reason',
-        'description',
         'notes',
-        'terms',
     ];
 
     protected $casts = [

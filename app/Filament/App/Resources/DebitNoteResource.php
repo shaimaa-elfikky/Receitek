@@ -30,132 +30,122 @@ class DebitNoteResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('invoice_id')
-                    ->relationship('invoice', 'invoice_number')
-                    ->searchable()
-                    ->preload()
-                    ->required()
-                    ->live()
-                    ->afterStateUpdated(function ($state, Set $set) {
-                        $invoice = Invoice::with('items')->find($state);
-                        if ($invoice) {
-                            $items = [];
-                            foreach ($invoice->items as $item) {
-                                $items[] = [
-                                    'description' => $item->description ?? '',
-                                    'quantity' => $item->quantity ?? 1,
-                                    'unit_price' => $item->unit_price ?? 0,
-                                    'vat_rate' => $item->vat_rate ?? 0,
-                                    'product_id' => $item->product_id ?? null,
-                                    'service_id' => $item->service_id ?? null,
-                                    'discount_percentage' => $item->discount_percentage ?? 0,
-                                ];
-                            }
-                            $set('items', $items);
-                        } else {
-                            $set('items', []);
-                        }
-                    }),
-
-                Forms\Components\Repeater::make('items')
-                    ->schema([
-                        Forms\Components\Grid::make(8)->schema([
-                            Forms\Components\TextInput::make('description')
-                                ->required()
-                                ->columnSpan(4)
-                                ->disabled(),
-                            Forms\Components\Hidden::make('product_id'),
-                            Forms\Components\Hidden::make('service_id'),
-                            Forms\Components\Hidden::make('vat_rate'),
-                            Forms\Components\TextInput::make('quantity')
-                                ->required()
+                Forms\Components\Card::make([
+                    Forms\Components\Grid::make(2)->schema([
+                        Forms\Components\Select::make('invoice_id')
+                            ->relationship('invoice', 'invoice_number')
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function ($state, Set $set) {
+                                $invoice = Invoice::with('items')->find($state);
+                                if ($invoice) {
+                                    $items = [];
+                                    foreach ($invoice->items as $item) {
+                                        $items[] = [
+                                            'description' => $item->description ?? '',
+                                            'quantity' => $item->quantity ?? 1,
+                                            'unit_price' => $item->unit_price ?? 0,
+                                            'vat_rate' => $item->vat_rate ?? 0,
+                                            'product_id' => $item->product_id ?? null,
+                                            'service_id' => $item->service_id ?? null,
+                                            'discount_percentage' => $item->discount_percentage ?? 0,
+                                        ];
+                                    }
+                                    $set('items', $items);
+                                } else {
+                                    $set('items', []);
+                                }
+                            }),
+                        Forms\Components\TextInput::make('debit_note_number')
+                            ->required()
+                            ->unique()
+                            ->default(function () {
+                                return 'DN-' . date('Y') . '-' . str_pad(DebitNote::count() + 1, 4, '0', STR_PAD_LEFT);
+                            }),
+                    ]),
+                    Forms\Components\Grid::make(2)->schema([
+                        Forms\Components\DatePicker::make('issue_date')
+                            ->required()
+                            ->default(now())
+                            ->disabled(),
+                        Forms\Components\DatePicker::make('due_date')
+                            ->required()
+                            ->default(now()->addDays(30))
+                            ->disabled(),
+                    ]),
+                    Forms\Components\Textarea::make('notes')
+                        ->rows(3)
+                        ->placeholder('Internal notes')
+                        ->columnSpan(2),
+                    Forms\Components\Repeater::make('items')
+                        ->schema([
+                            Forms\Components\Grid::make(8)->schema([
+                                Forms\Components\TextInput::make('description')
+                                    ->label('Item Name')
+                                    ->required()
+                                    ->columnSpan(4)
+                                    ->disabled(),
+                                Forms\Components\Hidden::make('product_id'),
+                                Forms\Components\Hidden::make('service_id'),
+                                Forms\Components\Hidden::make('vat_rate'),
+                                Forms\Components\TextInput::make('quantity')
+                                    ->required()
+                                    ->numeric()
+                                    ->live()
+                                    ->columnSpan(1),
+                                Forms\Components\TextInput::make('unit_price')
+                                    ->label('Unit Price')
+                                    ->required()
+                                    ->numeric()
+                                    ->live()
+                                    ->columnSpan(1)
+                                    ->disabled(),
+                                Forms\Components\TextInput::make('discount_percentage')
+                                    ->label('Discount (%)')
+                                    ->numeric()
+                                    ->default(0)
+                                    ->live()
+                                    ->columnSpan(1),
+                                Forms\Components\Placeholder::make('total')
+                                    ->label('Line Total')
+                                    ->content(fn(Get $get) => '$' . number_format(($get('quantity') * $get('unit_price')) - (($get('quantity') * $get('unit_price')) * ($get('discount_percentage') / 100)), 2))
+                                    ->columnSpan(1),
+                            ]),
+                        ])
+                        ->disableItemCreation()
+                        ->disableItemDeletion()
+                        ->minItems(0)
+                        ->defaultItems(0)
+                        ->columnSpan(2)
+                        ->live()
+                        ->afterStateUpdated(fn(Get $get, Set $set) => self::updateTotals($get, $set)),
+                    Forms\Components\Section::make('')
+                        ->icon('heroicon-o-calculator')
+                        ->schema([
+                            Forms\Components\TextInput::make('subtotal')
+                                ->label('Sub Total')
                                 ->numeric()
-                                ->live()
-                                ->columnSpan(1),
-                            Forms\Components\TextInput::make('unit_price')
-                                ->label('Unit Price')
-                                ->required()
+                                ->readOnly()
+                                ->prefixIcon('heroicon-o-currency-dollar'),
+                            Forms\Components\TextInput::make('total_discount')
+                                ->label('Discount')
                                 ->numeric()
-                                ->live()
-                                ->columnSpan(1)
-                                ->disabled(),
-                            Forms\Components\TextInput::make('discount_percentage')
-                                ->label('Discount (%)')
+                                ->readOnly()
+                                ->prefixIcon('heroicon-o-tag'),
+                            Forms\Components\TextInput::make('tax_amount')
+                                ->label('VAT')
                                 ->numeric()
-                                ->default(0)
-                                ->live()
-                                ->columnSpan(1),
-                            Forms\Components\Placeholder::make('total')
-                                ->label('Line Total')
-                                ->content(fn(Get $get) => '$' . number_format(($get('quantity') * $get('unit_price')) - (($get('quantity') * $get('unit_price')) * ($get('discount_percentage') / 100)), 2))
-                                ->columnSpan(1),
-                        ]),
-                    ])
-                    ->disableItemCreation()
-                    ->disableItemDeletion()
-                    ->minItems(0)
-                    ->defaultItems(0)
-                    ->columnSpan(2)
-                    ->live()
-                    ->afterStateUpdated(fn(Get $get, Set $set) => self::updateTotals($get, $set)),
-
-                Forms\Components\TextInput::make('debit_note_number')
-                    ->required()
-                    ->unique()
-                    ->default(function () {
-                        return 'DN-' . date('Y') . '-' . str_pad(DebitNote::count() + 1, 4, '0', STR_PAD_LEFT);
-                    }),
-
-                Forms\Components\DatePicker::make('issue_date')
-                    ->required()
-                    ->default(now()),
-
-                Forms\Components\DatePicker::make('due_date')
-                    ->required()
-                    ->default(now()->addDays(30)),
-
-                Forms\Components\Textarea::make('reason')
-                    ->required()
-                    ->rows(3)
-                    ->placeholder('Reason for debit note (e.g., Additional charges, Correction, etc.)'),
-
-                Forms\Components\Textarea::make('description')
-                    ->rows(3)
-                    ->placeholder('Detailed description of the debit'),
-
-                Forms\Components\Textarea::make('notes')
-                    ->rows(3)
-                    ->placeholder('Internal notes'),
-
-                Forms\Components\Textarea::make('terms')
-                    ->rows(3)
-                    ->placeholder('Payment terms and conditions'),
-
-                Forms\Components\Section::make('Debit Note Summary')
-                    ->description('Financial totals and calculations')
-                    ->icon('heroicon-o-calculator')
-                    ->schema([
-                        Forms\Components\TextInput::make('subtotal')
-                            ->label('Sub Total')
-                            ->numeric()
-                            ->readOnly()
-                            ->prefixIcon('heroicon-o-currency-dollar'),
-                        Forms\Components\TextInput::make('total_discount')
-                            ->label('Total Discount')
-                            ->numeric()
-                            ->readOnly()
-                            ->prefixIcon('heroicon-o-tag'),
-                        Forms\Components\TextInput::make('tax_amount')
-                            ->label('Total VAT')
-                            ->numeric()
-                            ->readOnly()
-                            ->prefixIcon('heroicon-o-calculator'),
-                        Forms\Components\TextInput::make('total')
-                            ->numeric()
-                            ->readOnly()
-                            ->prefixIcon('heroicon-o-currency-dollar')
-                            ->extraAttributes(['class' => 'font-bold text-lg']),
-                    ])->columns(4)->columnSpan(2),
+                                ->readOnly()
+                                ->prefixIcon('heroicon-o-calculator'),
+                            Forms\Components\TextInput::make('total')
+                                ->numeric()
+                                ->readOnly()
+                                ->prefixIcon('heroicon-o-currency-dollar')
+                                ->extraAttributes(['class' => 'font-bold text-lg']),
+                        ])->columns(4)->columnSpan(2),
+                ]),
             ]);
     }
 

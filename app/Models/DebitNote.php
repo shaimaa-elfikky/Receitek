@@ -18,10 +18,7 @@ class DebitNote extends Model
         'issue_date',
         'due_date',
         'amount',
-        'reason',
-        'description',
         'notes',
-        'terms',
     ];
 
     protected $casts = [

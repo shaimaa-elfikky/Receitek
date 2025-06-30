@@ -26,55 +26,56 @@ class ProductResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Section::make('Product & Category')->schema([
-                Forms\Components\TextInput::make('name')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\Select::make('category_id')
-                    ->label('Category')
-                    ->options(
-                        Category::where('tenant_id', auth()->user()->id)
-                        ->pluck('name', 'id')
-                    )
-                    ->searchable(),
-            ])->columns(2),
-            Forms\Components\Section::make('Pricing & Stock')->schema([
-                Forms\Components\TextInput::make('price')
-                    ->required()
-                    ->numeric()
-                    ->prefix('SAR'),
-                Forms\Components\Select::make('vat')
-                    ->label('VAT Rate')
-                    ->options([
-                        '15' => '15%',
-                        '0' => '0%',
-                        'exempt' => 'Exempt from VAT',
-                    ])
-                    ->required(),
-                Forms\Components\Toggle::make('vat_included')
-                    ->label('Price includes VAT'),
-            ])->columns(3),
-            Forms\Components\Section::make('Product Serial')->schema([
-                Forms\Components\TextInput::make('code')
-                    ->label('Code')
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('serial_numbers')
-                    ->label('Serial Numbers (Comma Separated)')
-                    ->required()
-                    ->helperText('Enter serial numbers separated by commas. Example: SN001, SN002, SN003')
-                    ->dehydrated(false),
-                Forms\Components\TextInput::make('sku')
-                    ->label('SKU (Stock Keeping Unit)')
-                    ->maxLength(255),
+            Forms\Components\Card::make([
+                Forms\Components\Section::make('Product & Category')->schema([
+                    Forms\Components\TextInput::make('name')
+                        ->required()
+                        ->maxLength(255),
+                    Forms\Components\Select::make('category_id')
+                        ->label('Category')
+                        ->options(
+                            Category::where('tenant_id', auth()->user()->id)
+                            ->pluck('name', 'id')
+                        )
+                        ->searchable(),
+                ])->columns(2),
+                Forms\Components\Section::make('Pricing & Stock')->schema([
+                    Forms\Components\TextInput::make('price')
+                        ->required()
+                        ->numeric()
+                        ->prefix('SAR'),
+                    Forms\Components\Select::make('vat')
+                        ->label('VAT Rate')
+                        ->options([
+                            '15' => '15%',
+                            '0' => '0%',
+                            'exempt' => 'Exempt from VAT',
+                        ])
+                        ->required(),
+                    Forms\Components\Toggle::make('vat_included')
+                        ->label('Price includes VAT'),
                 ])->columns(3),
-
-            Forms\Components\Section::make('Organization')->schema([
-                Forms\Components\Textarea::make('description')
-                    ->columnSpanFull(),
-                Forms\Components\Toggle::make('is_active')
-                    ->label('Active')
-                    ->required()
-                    ->default(true),
+                Forms\Components\Section::make('Product Serial')->schema([
+                    Forms\Components\TextInput::make('code')
+                        ->label('Code')
+                        ->maxLength(255),
+                    Forms\Components\TextInput::make('serial_numbers')
+                        ->label('Serial Numbers (Comma Separated)')
+                        ->required()
+                        ->helperText('Enter serial numbers separated by commas. Example: SN001, SN002, SN003')
+                        ->dehydrated(false),
+                    Forms\Components\TextInput::make('sku')
+                        ->label('SKU (Stock Keeping Unit)')
+                        ->maxLength(255),
+                ])->columns(3),
+                Forms\Components\Section::make('Organization')->schema([
+                    Forms\Components\Textarea::make('description')
+                        ->columnSpanFull(),
+                    Forms\Components\Toggle::make('is_active')
+                        ->label('Active')
+                        ->required()
+                        ->default(true),
+                ]),
             ]),
         ]);
     }

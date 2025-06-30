@@ -22,10 +22,7 @@ return new class extends Migration
             $table->date('due_date');
 
             $table->decimal('amount', 10, 2);
-            $table->text('reason');
-            $table->text('description')->nullable();
             $table->text('notes')->nullable();
-            $table->text('terms')->nullable();
 
             $table->timestamps();
         });

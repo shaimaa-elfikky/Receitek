@@ -114,22 +114,33 @@ class InvoiceResource extends Resource
                                             ->schema([
                                                 Forms\Components\Actions::make([
                                                     Forms\Components\Actions\Action::make("add_product_{$product->id}")
-                                                        ->label($product->name . ' ($' . number_format($product->price, 2) . ')')
+                                                        ->label($product->name)
                                                         ->icon('heroicon-o-shopping-bag')
                                                         ->color('primary')
                                                         ->size('sm')
                                                         ->extraAttributes(['class' => 'hover:scale-105 transition-transform'])
                                                         ->action(function (Get $get, Set $set) use ($product) {
                                                             $items = $get('items') ?? [];
-                                                            $items[] = [
-                                                                'description' => $product->name,
-                                                                'quantity' => 1,
-                                                                'unit_price' => $product->price,
-                                                                'vat_rate' => $product->vat ?? 15,
-                                                                'product_id' => $product->id,
-                                                                'service_id' => null,
-                                                                'discount_percentage' => 0,
-                                                            ];
+                                                            $found = false;
+                                                            foreach ($items as &$item) {
+                                                                if (($item['product_id'] ?? null) === $product->id) {
+                                                                    $item['quantity'] = ($item['quantity'] ?? 1) + 1;
+                                                                    $found = true;
+                                                                    break;
+                                                                }
+                                                            }
+                                                            unset($item);
+                                                            if (! $found) {
+                                                                $items[] = [
+                                                                    'description' => $product->name,
+                                                                    'quantity' => 1,
+                                                                    'unit_price' => $product->price,
+                                                                    'vat_rate' => $product->vat ?? 15,
+                                                                    'product_id' => $product->id,
+                                                                    'service_id' => null,
+                                                                    'discount_percentage' => 0,
+                                                                ];
+                                                            }
                                                             $set('items', $items);
                                                             self::updateTotals($get, $set);
                                                         })
@@ -146,22 +157,33 @@ class InvoiceResource extends Resource
                                             ->schema([
                                                 Forms\Components\Actions::make([
                                                     Forms\Components\Actions\Action::make("add_service_{$service->id}")
-                                                        ->label($service->name . ' ($' . number_format($service->price, 2) . ')')
+                                                        ->label($service->name)
                                                         ->icon('heroicon-o-wrench-screwdriver')
                                                         ->color('success')
                                                         ->size('sm')
                                                         ->extraAttributes(['class' => 'hover:scale-105 transition-transform'])
                                                         ->action(function (Get $get, Set $set) use ($service) {
                                                             $items = $get('items') ?? [];
-                                                            $items[] = [
-                                                                'description' => $service->name,
-                                                                'quantity' => 1,
-                                                                'unit_price' => $service->price,
-                                                                'vat_rate' => $service->vat ?? 15,
-                                                                'product_id' => null,
-                                                                'service_id' => $service->id,
-                                                                'discount_percentage' => 0,
-                                                            ];
+                                                            $found = false;
+                                                            foreach ($items as &$item) {
+                                                                if (($item['service_id'] ?? null) === $service->id) {
+                                                                    $item['quantity'] = ($item['quantity'] ?? 1) + 1;
+                                                                    $found = true;
+                                                                    break;
+                                                                }
+                                                            }
+                                                            unset($item);
+                                                            if (! $found) {
+                                                                $items[] = [
+                                                                    'description' => $service->name,
+                                                                    'quantity' => 1,
+                                                                    'unit_price' => $service->price,
+                                                                    'vat_rate' => $service->vat ?? 15,
+                                                                    'product_id' => null,
+                                                                    'service_id' => $service->id,
+                                                                    'discount_percentage' => 0,
+                                                                ];
+                                                            }
                                                             $set('items', $items);
                                                             self::updateTotals($get, $set);
                                                         })
@@ -208,7 +230,12 @@ class InvoiceResource extends Resource
                                                 return !empty($get('product_id'));
                                             })
                                             ->required(function (Get $get) {
-                                                return !empty($get('product_id'));
+                                                $productId = $get('product_id');
+                                                if (!$productId) {
+                                                    return false;
+                                                }
+                                                // Only require if there are serials for this product
+                                                return \App\Models\ProductSerial::where('product_id', $productId)->exists();
                                             }),
                                         // --- End serial block ---
                             
@@ -249,36 +276,49 @@ class InvoiceResource extends Resource
                         ])
                         ->columnSpan(2),
 
-                    Forms\Components\Section::make('Invoice Summary')
-                        ->description('Financial totals and calculations')
+                    Forms\Components\Section::make('Totals')
                         ->icon('heroicon-o-calculator')
                         ->schema([
-                            Forms\Components\TextInput::make('subtotal')
-                                ->label('Sub Total')
-                                ->numeric()
-                                ->readOnly()
-                                ->prefixIcon('heroicon-o-currency-dollar'),
-                            Forms\Components\TextInput::make('total_discount')
-                                ->label('Total Discount')
-                                ->numeric()
-                                ->readOnly()
-                                ->prefixIcon('heroicon-o-tag'),
-                            Forms\Components\TextInput::make('subtotal')
-                                ->label('Taxable Amount')
-                                ->numeric()
-                                ->readOnly()
-                                ->prefixIcon('heroicon-o-calculator'),
-                            Forms\Components\TextInput::make('tax_amount')
-                                ->label('Total VAT')
-                                ->numeric()
-                                ->readOnly()
-                                ->prefixIcon('heroicon-o-calculator'),
-                            Forms\Components\TextInput::make('total')
-                                ->numeric()
-                                ->readOnly()
-                                ->prefixIcon('heroicon-o-currency-dollar')
-                                ->extraAttributes(['class' => 'font-bold text-lg']),
-                        ])->columns(5)->columnSpan(2),
+                            Forms\Components\Grid::make(1)->schema([
+                                Forms\Components\TextInput::make('subtotal')
+                                    ->label('Sub Total')
+                                    ->inlineLabel() 
+                                    ->numeric()
+                                    ->readOnly()
+                                    ->prefixIcon('heroicon-o-currency-dollar'),
+
+                                Forms\Components\TextInput::make('total_discount')
+                                    ->label('Total Discount')
+                                    ->inlineLabel() 
+                                    ->numeric()
+                                    ->readOnly()
+                                    ->prefixIcon('heroicon-o-tag'),
+
+                                Forms\Components\TextInput::make('taxable_amount')
+                                    ->label('Taxable Amount')
+                                    ->inlineLabel() 
+                                    ->numeric()
+                                    ->readOnly()
+                                    ->prefixIcon('heroicon-o-calculator'),
+
+                                Forms\Components\TextInput::make('total_tax')
+                                    ->label('Total VAT')
+                                    ->inlineLabel() 
+                                    ->numeric()
+                                    ->readOnly()
+                                    ->prefixIcon('heroicon-o-calculator'),
+
+                                Forms\Components\TextInput::make('total')
+                                    ->label('Total') 
+                                    ->inlineLabel() // <-- Add this
+                                    ->numeric()
+                                    ->readOnly()
+                                    ->prefixIcon('heroicon-o-currency-dollar')
+                                    ->extraAttributes(['class' => 'font-bold text-lg']),
+                            ]),
+                        ])
+                        ->columns(1)
+                        ->columnSpan(2),
 
                     Forms\Components\Section::make('Additional Information')
                         ->description('Notes and terms for the invoice')
@@ -288,11 +328,7 @@ class InvoiceResource extends Resource
                                 ->label('Notes')
                                 ->placeholder('Add any additional notes here...')
                                 ->rows(3),
-                            Forms\Components\Textarea::make('terms')
-                                ->label('Terms & Conditions')
-                                ->placeholder('Payment terms and conditions...')
-                                ->rows(3),
-                        ])->columns(2)->columnSpan(2),
+                        ])->columns(1),
                 ]),
         ]);
     }
@@ -315,7 +351,7 @@ class InvoiceResource extends Resource
 
         $set('subtotal', number_format($totals['subtotal'], 2, '.', ''));
         $set('total_discount', number_format($totals['total_discount'], 2, '.', ''));
-        $set('tax_amount', number_format($totals['total_tax'], 2, '.', ''));
+        $set('total_tax', number_format($totals['total_tax'], 2, '.', ''));
         $set('total', number_format($totals['total'], 2, '.', ''));
     }
 

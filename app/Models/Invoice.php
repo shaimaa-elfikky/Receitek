@@ -13,7 +13,7 @@ class Invoice extends Model
 
     protected $fillable = [
         'tenant_id', 'client_id', 'invoice_number', 'issue_date', 'due_date',
-        'subtotal', 'total_discount', 'total_tax','tax_rate', 'tax_amount', 'tax_amount','total', 'notes', 'terms',
+        'subtotal', 'total_discount', 'total_tax','total', 'notes', 'terms',
     ];
 
     protected $casts = [] ;
