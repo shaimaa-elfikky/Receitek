@@ -209,15 +209,6 @@ class DebitNoteResource extends Resource
                                 fn (Builder $query, $date): Builder => $query->whereDate('issue_date', '<=', $date),
                             );
                     }),
-            ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
             ]);
     }
 

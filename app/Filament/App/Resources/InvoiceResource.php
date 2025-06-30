@@ -125,7 +125,7 @@ class InvoiceResource extends Resource
                                                                 'description' => $product->name,
                                                                 'quantity' => 1,
                                                                 'unit_price' => $product->price,
-                                                                'vat_rate' => $product->vat,
+                                                                'vat_rate' => $product->vat ?? 15,
                                                                 'product_id' => $product->id,
                                                                 'service_id' => null,
                                                                 'discount_percentage' => 0,
@@ -157,7 +157,7 @@ class InvoiceResource extends Resource
                                                                 'description' => $service->name,
                                                                 'quantity' => 1,
                                                                 'unit_price' => $service->price,
-                                                                'vat_rate' => $service->vat,
+                                                                'vat_rate' => $service->vat ?? 15,
                                                                 'product_id' => null,
                                                                 'service_id' => $service->id,
                                                                 'discount_percentage' => 0,
@@ -186,11 +186,32 @@ class InvoiceResource extends Resource
                                     Forms\Components\Grid::make(8)->schema([
                                         Forms\Components\TextInput::make('description')
                                             ->required()
-                                            ->columnSpan(4)
+                                            ->columnSpan(3)
                                             ->prefixIcon('heroicon-o-tag'),
+                            
                                         Forms\Components\Hidden::make('product_id'),
                                         Forms\Components\Hidden::make('service_id'),
                                         Forms\Components\Hidden::make('vat_rate'),
+                            
+                                        // --- Add this block for serial selection ---
+                                        Forms\Components\Select::make('product_serial_id')
+                                            ->label('Product Serial')
+                                            ->options(function (Get $get) {
+                                                $productId = $get('product_id');
+                                                if (!$productId) {
+                                                    return [];
+                                                }
+                                                return \App\Models\ProductSerial::where('product_id', $productId)
+                                                    ->pluck('serial_number', 'id');
+                                            })
+                                            ->visible(function (Get $get) {
+                                                return !empty($get('product_id'));
+                                            })
+                                            ->required(function (Get $get) {
+                                                return !empty($get('product_id'));
+                                            }),
+                                        // --- End serial block ---
+                            
                                         Forms\Components\TextInput::make('quantity')
                                             ->required()
                                             ->numeric()

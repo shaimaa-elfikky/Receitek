@@ -212,15 +212,6 @@ class CreditNoteResource extends Resource
                                 fn (Builder $query, $date): Builder => $query->whereDate('issue_date', '<=', $date),
                             );
                     }),
-            ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
             ]);
     }
 
@@ -241,7 +232,6 @@ class CreditNoteResource extends Resource
         return [
             'index' => Pages\ListCreditNotes::route('/'),
             'create' => Pages\CreateCreditNote::route('/create'),
-            'edit' => Pages\EditCreditNote::route('/{record}/edit'),
         ];
     }
 } 
