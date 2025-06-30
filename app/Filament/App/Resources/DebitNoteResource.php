@@ -22,9 +22,9 @@ class DebitNoteResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
-    protected static ?string $navigationGroup = 'Billing';
+    protected static ?string $navigationGroup = 'Invoice Management';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {
@@ -42,13 +42,13 @@ class DebitNoteResource extends Resource
                             $items = [];
                             foreach ($invoice->items as $item) {
                                 $items[] = [
-                                    'description' => $item->description,
-                                    'quantity' => $item->quantity,
-                                    'unit_price' => $item->unit_price,
-                                    'vat_rate' => $item->vat_rate,
-                                    'product_id' => $item->product_id,
-                                    'service_id' => $item->service_id,
-                                    'discount_percentage' => $item->discount_percentage,
+                                    'description' => $item->description ?? '',
+                                    'quantity' => $item->quantity ?? 1,
+                                    'unit_price' => $item->unit_price ?? 0,
+                                    'vat_rate' => $item->vat_rate ?? 0,
+                                    'product_id' => $item->product_id ?? null,
+                                    'service_id' => $item->service_id ?? null,
+                                    'discount_percentage' => $item->discount_percentage ?? 0,
                                 ];
                             }
                             $set('items', $items);
@@ -229,7 +229,6 @@ class DebitNoteResource extends Resource
         return [
             'index' => Pages\ListDebitNotes::route('/'),
             'create' => Pages\CreateDebitNote::route('/create'),
-            'edit' => Pages\EditDebitNote::route('/{record}/edit'),
         ];
     }
 
@@ -239,6 +238,22 @@ class DebitNoteResource extends Resource
         if ($invoice) {
             $data['client_id'] = $invoice->client_id;
         }
+        // Filter out incomplete items and use safe defaults
+        $data['amount'] = collect($data['items'] ?? [])
+            ->filter(function ($item) {
+                return isset($item['unit_price']) && isset($item['quantity']);
+            })
+            ->sum(function ($item) {
+                $quantity = $item['quantity'] ?? 0;
+                $unitPrice = $item['unit_price'] ?? 0;
+                $discountPercentage = $item['discount_percentage'] ?? 0;
+                $vatRate = $item['vat_rate'] ?? 0;
+                $subtotal = $quantity * $unitPrice;
+                $discount = $subtotal * ($discountPercentage / 100);
+                $taxable = $subtotal - $discount;
+                $vat = $taxable * ($vatRate / 100);
+                return $taxable + $vat;
+            });
         return $data;
     }
 
@@ -248,6 +263,22 @@ class DebitNoteResource extends Resource
         if ($invoice) {
             $data['client_id'] = $invoice->client_id;
         }
+        // Filter out incomplete items and use safe defaults
+        $data['amount'] = collect($data['items'] ?? [])
+            ->filter(function ($item) {
+                return isset($item['unit_price']) && isset($item['quantity']);
+            })
+            ->sum(function ($item) {
+                $quantity = $item['quantity'] ?? 0;
+                $unitPrice = $item['unit_price'] ?? 0;
+                $discountPercentage = $item['discount_percentage'] ?? 0;
+                $vatRate = $item['vat_rate'] ?? 0;
+                $subtotal = $quantity * $unitPrice;
+                $discount = $subtotal * ($discountPercentage / 100);
+                $taxable = $subtotal - $discount;
+                $vat = $taxable * ($vatRate / 100);
+                return $taxable + $vat;
+            });
         return $data;
     }
 

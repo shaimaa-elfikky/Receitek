@@ -22,9 +22,9 @@ class CreditNoteResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-document-minus';
 
-    protected static ?string $navigationGroup = 'Billing';
+    protected static ?string $navigationGroup = 'Invoice Management';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {
