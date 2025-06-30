@@ -4,6 +4,7 @@ namespace App\Filament\App\Resources;
 
 use App\Filament\App\Resources\DebitNoteResource\Pages;
 use App\Models\DebitNote;
+use App\Models\Invoice;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -11,6 +12,9 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
+use App\Services\InvoiceService;
 
 class DebitNoteResource extends Resource
 {
@@ -18,25 +22,82 @@ class DebitNoteResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
-    protected static ?string $navigationGroup = 'Billing';
+    protected static ?string $navigationGroup = 'Invoice Management';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('client_id')
-                    ->relationship('client', 'name_en')
-                    ->searchable()
-                    ->preload()
-                    ->required(),
-
                 Forms\Components\Select::make('invoice_id')
                     ->relationship('invoice', 'invoice_number')
                     ->searchable()
                     ->preload()
-                    ->required(),
+                    ->required()
+                    ->live()
+                    ->afterStateUpdated(function ($state, Set $set) {
+                        $invoice = Invoice::with('items')->find($state);
+                        if ($invoice) {
+                            $items = [];
+                            foreach ($invoice->items as $item) {
+                                $items[] = [
+                                    'description' => $item->description ?? '',
+                                    'quantity' => $item->quantity ?? 1,
+                                    'unit_price' => $item->unit_price ?? 0,
+                                    'vat_rate' => $item->vat_rate ?? 0,
+                                    'product_id' => $item->product_id ?? null,
+                                    'service_id' => $item->service_id ?? null,
+                                    'discount_percentage' => $item->discount_percentage ?? 0,
+                                ];
+                            }
+                            $set('items', $items);
+                        } else {
+                            $set('items', []);
+                        }
+                    }),
+
+                Forms\Components\Repeater::make('items')
+                    ->schema([
+                        Forms\Components\Grid::make(8)->schema([
+                            Forms\Components\TextInput::make('description')
+                                ->required()
+                                ->columnSpan(4)
+                                ->disabled(),
+                            Forms\Components\Hidden::make('product_id'),
+                            Forms\Components\Hidden::make('service_id'),
+                            Forms\Components\Hidden::make('vat_rate'),
+                            Forms\Components\TextInput::make('quantity')
+                                ->required()
+                                ->numeric()
+                                ->live()
+                                ->columnSpan(1),
+                            Forms\Components\TextInput::make('unit_price')
+                                ->label('Unit Price')
+                                ->required()
+                                ->numeric()
+                                ->live()
+                                ->columnSpan(1)
+                                ->disabled(),
+                            Forms\Components\TextInput::make('discount_percentage')
+                                ->label('Discount (%)')
+                                ->numeric()
+                                ->default(0)
+                                ->live()
+                                ->columnSpan(1),
+                            Forms\Components\Placeholder::make('total')
+                                ->label('Line Total')
+                                ->content(fn(Get $get) => '$' . number_format(($get('quantity') * $get('unit_price')) - (($get('quantity') * $get('unit_price')) * ($get('discount_percentage') / 100)), 2))
+                                ->columnSpan(1),
+                        ]),
+                    ])
+                    ->disableItemCreation()
+                    ->disableItemDeletion()
+                    ->minItems(0)
+                    ->defaultItems(0)
+                    ->columnSpan(2)
+                    ->live()
+                    ->afterStateUpdated(fn(Get $get, Set $set) => self::updateTotals($get, $set)),
 
                 Forms\Components\TextInput::make('debit_note_number')
                     ->required()
@@ -52,12 +113,6 @@ class DebitNoteResource extends Resource
                 Forms\Components\DatePicker::make('due_date')
                     ->required()
                     ->default(now()->addDays(30)),
-
-                Forms\Components\TextInput::make('amount')
-                    ->numeric()
-                    ->prefix('$')
-                    ->required()
-                    ->minValue(0),
 
                 Forms\Components\Textarea::make('reason')
                     ->required()
@@ -75,6 +130,32 @@ class DebitNoteResource extends Resource
                 Forms\Components\Textarea::make('terms')
                     ->rows(3)
                     ->placeholder('Payment terms and conditions'),
+
+                Forms\Components\Section::make('Debit Note Summary')
+                    ->description('Financial totals and calculations')
+                    ->icon('heroicon-o-calculator')
+                    ->schema([
+                        Forms\Components\TextInput::make('subtotal')
+                            ->label('Sub Total')
+                            ->numeric()
+                            ->readOnly()
+                            ->prefixIcon('heroicon-o-currency-dollar'),
+                        Forms\Components\TextInput::make('total_discount')
+                            ->label('Total Discount')
+                            ->numeric()
+                            ->readOnly()
+                            ->prefixIcon('heroicon-o-tag'),
+                        Forms\Components\TextInput::make('tax_amount')
+                            ->label('Total VAT')
+                            ->numeric()
+                            ->readOnly()
+                            ->prefixIcon('heroicon-o-calculator'),
+                        Forms\Components\TextInput::make('total')
+                            ->numeric()
+                            ->readOnly()
+                            ->prefixIcon('heroicon-o-currency-dollar')
+                            ->extraAttributes(['class' => 'font-bold text-lg']),
+                    ])->columns(4)->columnSpan(2),
             ]);
     }
 
@@ -86,7 +167,8 @@ class DebitNoteResource extends Resource
                     ->searchable()
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('client.name_en')
+                Tables\Columns\TextColumn::make('invoice.client.name_en')
+                    ->label('Client')
                     ->searchable()
                     ->sortable(),
 
@@ -127,15 +209,6 @@ class DebitNoteResource extends Resource
                                 fn (Builder $query, $date): Builder => $query->whereDate('issue_date', '<=', $date),
                             );
                     }),
-            ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
             ]);
     }
 
@@ -156,7 +229,68 @@ class DebitNoteResource extends Resource
         return [
             'index' => Pages\ListDebitNotes::route('/'),
             'create' => Pages\CreateDebitNote::route('/create'),
-            'edit' => Pages\EditDebitNote::route('/{record}/edit'),
         ];
+    }
+
+    public static function mutateFormDataBeforeCreate(array $data): array
+    {
+        $invoice = \App\Models\Invoice::find($data['invoice_id'] ?? null);
+        if ($invoice) {
+            $data['client_id'] = $invoice->client_id;
+        }
+        // Filter out incomplete items and use safe defaults
+        $data['amount'] = collect($data['items'] ?? [])
+            ->filter(function ($item) {
+                return isset($item['unit_price']) && isset($item['quantity']);
+            })
+            ->sum(function ($item) {
+                $quantity = $item['quantity'] ?? 0;
+                $unitPrice = $item['unit_price'] ?? 0;
+                $discountPercentage = $item['discount_percentage'] ?? 0;
+                $vatRate = $item['vat_rate'] ?? 0;
+                $subtotal = $quantity * $unitPrice;
+                $discount = $subtotal * ($discountPercentage / 100);
+                $taxable = $subtotal - $discount;
+                $vat = $taxable * ($vatRate / 100);
+                return $taxable + $vat;
+            });
+        return $data;
+    }
+
+    public static function mutateFormDataBeforeSave(array $data): array
+    {
+        $invoice = \App\Models\Invoice::find($data['invoice_id'] ?? null);
+        if ($invoice) {
+            $data['client_id'] = $invoice->client_id;
+        }
+        // Filter out incomplete items and use safe defaults
+        $data['amount'] = collect($data['items'] ?? [])
+            ->filter(function ($item) {
+                return isset($item['unit_price']) && isset($item['quantity']);
+            })
+            ->sum(function ($item) {
+                $quantity = $item['quantity'] ?? 0;
+                $unitPrice = $item['unit_price'] ?? 0;
+                $discountPercentage = $item['discount_percentage'] ?? 0;
+                $vatRate = $item['vat_rate'] ?? 0;
+                $subtotal = $quantity * $unitPrice;
+                $discount = $subtotal * ($discountPercentage / 100);
+                $taxable = $subtotal - $discount;
+                $vat = $taxable * ($vatRate / 100);
+                return $taxable + $vat;
+            });
+        return $data;
+    }
+
+    public static function updateTotals(Get $get, Set $set): void
+    {
+        $invoiceService = app(InvoiceService::class);
+        $items = $get('items') ?? [];
+        $totals = $invoiceService->calculateTotals($items);
+
+        $set('subtotal', number_format($totals['subtotal'], 2, '.', ''));
+        $set('total_discount', number_format($totals['total_discount'], 2, '.', ''));
+        $set('tax_amount', number_format($totals['total_tax'], 2, '.', ''));
+        $set('total', number_format($totals['total'], 2, '.', ''));
     }
 } 

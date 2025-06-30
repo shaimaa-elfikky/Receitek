@@ -13,7 +13,7 @@ class CreateDebitNote extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $data['tenant_id'] = Auth::user()->id;
-        
+        $data = DebitNoteResource::mutateFormDataBeforeCreate($data);
         return $data;
     }
 } 
