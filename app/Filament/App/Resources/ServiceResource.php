@@ -30,14 +30,19 @@ class ServiceResource extends Resource
                 Forms\Components\TextInput::make('name')
                     ->required()
                     ->maxLength(255),
-                Forms\Components\Textarea::make('description')
-                    ->columnSpanFull(),
-            ]),
+                Forms\Components\Select::make('category_id')
+                    ->label('Category')
+                    ->options(
+                        Category::where('tenant_id', auth()->user()->id)
+                            ->pluck('name', 'id')
+                    )
+                    ->searchable(),
+            ])->columns(2),
             Forms\Components\Section::make('Pricing')->schema([
                 Forms\Components\TextInput::make('price')
                     ->required()
                     ->numeric()
-                    ->prefix('SAR'), // Or your currency
+                    ->prefix('SAR'), 
                 Forms\Components\Select::make('vat')
                     ->label('VAT Rate')
                     ->options([
@@ -49,15 +54,9 @@ class ServiceResource extends Resource
                 Forms\Components\Toggle::make('vat_included')
                     ->label('Price includes VAT'),
             ])->columns(2),
-            Forms\Components\Section::make('Organization')->schema([
-                // This Select is scoped to only show the tenant's own categories.
-                Forms\Components\Select::make('category_id')
-                    ->label('Category')
-                    ->options(
-                        Category::where('tenant_id', auth()->user()->id)
-                            ->pluck('name', 'id')
-                    )
-                    ->searchable(),
+            Forms\Components\Section::make('Organization')->schema([           
+                Forms\Components\Textarea::make('description')
+                    ->columnSpanFull(),
                 Forms\Components\Toggle::make('is_active')
                     ->label('Active')
                     ->required()

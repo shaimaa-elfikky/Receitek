@@ -16,7 +16,8 @@ return new class extends Migration
             $table->foreignId('tenant_id')->constrained()->onDelete('cascade');
             // Links the product to one of the tenant's categories
             $table->foreignId('category_id')->nullable()->constrained()->onDelete('set null');
-
+            
+            $table->string('code')->nullable()->after('name');
             $table->string('name');
             $table->text('description')->nullable();
             $table->string('sku')->nullable()->comment('Stock Keeping Unit');

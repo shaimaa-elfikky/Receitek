@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('description');
             $table->unsignedInteger('quantity');
             $table->decimal('unit_price', 10, 2);
+            $table->boolean('vat_included')->default(false)->
             $table->decimal('discount_percentage', 5, 2)->default(0.00);
             $table->decimal('tax_amount', 10, 2)->default(0.00);
             $table->string('vat_rate')->default('15');
