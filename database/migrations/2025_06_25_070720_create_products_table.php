@@ -17,6 +17,8 @@ return new class extends Migration
             // Links the product to one of the tenant's categories
             $table->foreignId('category_id')->nullable()->constrained()->onDelete('set null');
 
+            $table->string('code')->nullable();
+            $table->string('serial_number')->unique();
             $table->string('name');
             $table->text('description')->nullable();
             $table->string('sku')->nullable()->comment('Stock Keeping Unit');
