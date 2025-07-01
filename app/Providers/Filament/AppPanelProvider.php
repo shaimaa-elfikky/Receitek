@@ -11,6 +11,7 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Widgets;
+use Modules\Dashboard\Models\BusinessSetting;
 use App\Filament\App\Widgets\AppAccountWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -73,5 +74,15 @@ class AppPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ]);
+    }
+
+    public function boot(): void
+    {
+        // $this->configurePlugins();
+        // $this->configureAssets();
+
+        $this->app->singleton('business-settings', function () {
+            return BusinessSetting::pluck('value', 'key');
+        });
     }
 }

@@ -159,8 +159,9 @@ class InvoiceResource extends Resource
                     ),
                     Forms\Components\Repeater::make('items')
                         ->relationship()
+                        ->columnSpanFull()
                         ->schema([
-                            Forms\Components\Grid::make(8)->schema([
+                            Forms\Components\Grid::make(9)->schema([
                                 Forms\Components\TextInput::make('description')
                                     ->label('Item Name')
                                     ->required()
@@ -210,7 +211,7 @@ class InvoiceResource extends Resource
                                     ->columnSpan(1)
                                     ->prefixIcon('heroicon-o-tag'),
                                 Forms\Components\Placeholder::make('total')
-                                    ->label('Line Total')
+                                    ->label('Total')
                                     ->content(fn(Get $get) => '$' . number_format(($get('quantity') * $get('unit_price')) - (($get('quantity') * $get('unit_price')) * ($get('discount_percentage') / 100)), 2))
                                     ->columnSpan(1),
                             ]),
@@ -219,7 +220,6 @@ class InvoiceResource extends Resource
                         ->afterStateUpdated(fn(Get $get, Set $set) => self::updateTotals($get, $set))
                         ->deleteAction(fn(Get $get, Set $set) => self::updateTotals($get, $set))
                         ->itemLabel(fn (array $state): ?string => $state['description'] ?? null)
-                        ->columnSpan(2)
                         ->defaultItems(0)
                         ->minItems(0)
                         ->disableItemCreation(),
@@ -262,7 +262,7 @@ class InvoiceResource extends Resource
                             ->extraAttributes(['class' => 'font-bold text-lg']),
                     ]),
                   
-                ])->columns(2),
+                ])->columns(3),
         ]);
     }
 
