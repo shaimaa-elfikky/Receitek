@@ -27,43 +27,40 @@ class ServiceResource extends Resource
     {
         return $form->schema([
             Forms\Components\Card::make([
-                Forms\Components\Section::make('Service Details')->schema([
-                    Forms\Components\TextInput::make('name')
-                        ->required()
-                        ->maxLength(255),
-                    Forms\Components\Select::make('category_id')
-                        ->label('Category')
-                        ->options(
-                            Category::where('tenant_id', auth()->user()->id)
-                                ->pluck('name', 'id')
-                        )
-                        ->searchable(),
-                ])->columns(2),
-                Forms\Components\Section::make('Pricing')->schema([
-                    Forms\Components\TextInput::make('price')
-                        ->required()
-                        ->numeric()
-                        ->prefix('SAR'),
-                    Forms\Components\Select::make('vat')
-                        ->label('VAT Rate')
-                        ->options([
-                            '15' => '15%',
-                            '0' => '0%',
-                            'exempt' => 'Exempt from VAT',
-                        ])
-                        ->required(),
-                    Forms\Components\Toggle::make('vat_included')
-                        ->label('Price includes VAT'),
-                ])->columns(2),
-                Forms\Components\Section::make('Organization')->schema([
-                    Forms\Components\Textarea::make('description')
-                        ->columnSpanFull(),
-                    Forms\Components\Toggle::make('is_active')
-                        ->label('Active')
-                        ->required()
-                        ->default(true),
-                ]),
-            ]),
+                Forms\Components\TextInput::make('name')
+                    ->required()
+                    ->maxLength(255),
+                Forms\Components\TextInput::make('code')
+                    ->label('Code')
+                    ->maxLength(100),
+                Forms\Components\Select::make('category_id')
+                    ->label('Category')
+                    ->options(
+                        Category::where('tenant_id', Auth::id())
+                            ->pluck('name', 'id')
+                    )
+                    ->searchable(),
+                Forms\Components\TextInput::make('price')
+                    ->required()
+                    ->numeric()
+                    ->prefix('SAR'),
+                Forms\Components\Select::make('vat')
+                    ->label('VAT Rate')
+                    ->options([
+                        '15' => '15%',
+                        '0' => '0%',
+                        'exempt' => 'Exempt from VAT',
+                    ])
+                    ->required(),
+                Forms\Components\Toggle::make('vat_included')
+                    ->label('Price includes VAT'),
+                Forms\Components\Textarea::make('notes')
+                    ->columnSpanFull(),
+                Forms\Components\Toggle::make('is_active')
+                    ->label('Active')
+                    ->required()
+                    ->default(true),
+            ])->columns(2),
         ]);
     }
 
@@ -74,11 +71,11 @@ class ServiceResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('category.name')
+                Tables\Columns\TextColumn::make('code')
                     ->sortable()
-                    ->badge(),
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('price')
-                    ->money('SAR') // Or your currency
+                    ->money('SAR') 
                     ->sortable(),
                 Tables\Columns\ToggleColumn::make('is_active')->label(
                     'Active'
@@ -107,7 +104,7 @@ class ServiceResource extends Resource
     {
         return parent::getEloquentQuery()->where(
             'tenant_id',
-            auth()->user()->id
+            Auth::id()
         );
     }
 
@@ -116,7 +113,7 @@ class ServiceResource extends Resource
      */
     protected static function mutateFormDataBeforeCreate(array $data): array
     {
-        $data['tenant_id'] = auth()->user()->id;
+        $data['tenant_id'] = Auth::id();
         return $data;
     }
 

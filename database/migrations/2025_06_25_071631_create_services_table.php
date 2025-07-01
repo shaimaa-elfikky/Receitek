@@ -17,7 +17,8 @@ return new class extends Migration
             $table->foreignId('tenant_id')->constrained()->onDelete('cascade');
             // Links the service to one of the tenant's categories
             $table->foreignId('category_id')->nullable()->constrained()->onDelete('set null');
-
+           
+            $table->string('code')->nullable();
             $table->string('name');
             $table->text('description')->nullable();
             $table->decimal('price', 10, 2)->default(0.0);

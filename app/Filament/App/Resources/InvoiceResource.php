@@ -27,13 +27,11 @@ class InvoiceResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Section::make('Invoice Details')
-                ->description('Basic invoice information')
-                ->icon('heroicon-o-document-text')
+            Forms\Components\Section::make('')
                 ->schema([
                     Forms\Components\Select::make('client_id')
                         ->label('Client')
-                        ->options(Client::where('tenant_id', Auth::user()->id)->pluck('name_en', 'id'))
+                        ->options(Client::where('tenant_id', Auth::id())->pluck('name_en', 'id'))
                         ->searchable()
                         ->required()
                         ->prefixIcon('heroicon-o-user'),
@@ -49,287 +47,222 @@ class InvoiceResource extends Resource
                         ->default(now()->addDays(14))
                         ->required()
                         ->prefixIcon('heroicon-o-clock'),
-                ])->columns(2),
-
-            Forms\Components\Section::make('Invoice Items')
-                ->description('Add products and services to your invoice')
-                ->icon('heroicon-o-shopping-cart')
-                ->schema([
                     Forms\Components\Select::make('category_filter')
                         ->label('Category')
-                        ->options(Category::where('tenant_id', Auth::user()->id)->pluck('name', 'id')->toArray())
+                        ->options(Category::where('tenant_id', Auth::id())->pluck('name', 'id')->toArray())
                         ->live()
                         ->afterStateUpdated(fn(Set $set) => $set('selected_items', []))
                         ->columnSpan(2)
                         ->prefixIcon('heroicon-o-tag'),
-
-                    Forms\Components\Section::make('Available Items')
-                        ->description('Click on items to add them to your invoice')
-                        ->icon('heroicon-o-plus-circle')
-                        ->schema([
-                            Forms\Components\Placeholder::make('items_placeholder')
-                                ->content(function (Get $get) {
-                                    $categoryId = $get('category_filter');
-                                    if (!$categoryId) {
-                                        return 'Select a category to see available items';
-                                    }
-                                    
-                                    $products = Product::where('tenant_id', Auth::user()->id)
-                                        ->where('category_id', $categoryId)
-                                        ->count();
-                                    
-                                    $services = Service::where('tenant_id', Auth::user()->id)
-                                        ->where('category_id', $categoryId)
-                                        ->count();
-                                    
-                                    $total = $products + $services;
-                                    
-                                    if ($total === 0) {
-                                        return '❌ No items available in this category';
-                                    }                                    
-                                }),
-                            
-                            Forms\Components\Grid::make(4)->schema(
-                                function (Get $get) {
-                                    $categoryId = $get('category_filter');
-                                    if (!$categoryId) {
-                                        return [];
-                                    }
-                                    
-                                    $products = Product::where('tenant_id', Auth::user()->id)
-                                        ->where('category_id', $categoryId)
-                                        ->get();
-                                    
-                                    $services = Service::where('tenant_id', Auth::user()->id)
-                                        ->where('category_id', $categoryId)
-                                        ->get();
-                                    
-                                    $items = [];
-                                    
-                                    // Add products
-                                    foreach (
-                                        $products as $product
-                                    ) {
-                                        $items[] = Forms\Components\Card::make()
-                                            ->schema([
-                                                Forms\Components\Actions::make([
-                                                    Forms\Components\Actions\Action::make("add_product_{$product->id}")
-                                                        ->label($product->name)
-                                                        ->icon('heroicon-o-shopping-bag')
-                                                        ->color('primary')
-                                                        ->size('sm')
-                                                        ->extraAttributes(['class' => 'hover:scale-105 transition-transform'])
-                                                        ->action(function (Get $get, Set $set) use ($product) {
-                                                            $items = $get('items') ?? [];
-                                                            $found = false;
-                                                            foreach ($items as &$item) {
-                                                                if (($item['product_id'] ?? null) === $product->id) {
-                                                                    $item['quantity'] = ($item['quantity'] ?? 1) + 1;
-                                                                    $found = true;
-                                                                    break;
-                                                                }
-                                                            }
-                                                            unset($item);
-                                                            if (! $found) {
-                                                                $items[] = [
-                                                                    'description' => $product->name,
-                                                                    'quantity' => 1,
-                                                                    'unit_price' => $product->price,
-                                                                    'vat_rate' => $product->vat ?? 15,
-                                                                    'product_id' => $product->id,
-                                                                    'service_id' => null,
-                                                                    'discount_percentage' => 0,
-                                                                ];
-                                                            }
-                                                            $set('items', $items);
-                                                            self::updateTotals($get, $set);
-                                                        })
-                                                ])
-                                            ])
-                                            ->columnSpan(1);
-                                    }
-                                    
-                                    // Add services
-                                    foreach (
-                                        $services as $service
-                                    ) {
-                                        $items[] = Forms\Components\Card::make()
-                                            ->schema([
-                                                Forms\Components\Actions::make([
-                                                    Forms\Components\Actions\Action::make("add_service_{$service->id}")
-                                                        ->label($service->name)
-                                                        ->icon('heroicon-o-wrench-screwdriver')
-                                                        ->color('success')
-                                                        ->size('sm')
-                                                        ->extraAttributes(['class' => 'hover:scale-105 transition-transform'])
-                                                        ->action(function (Get $get, Set $set) use ($service) {
-                                                            $items = $get('items') ?? [];
-                                                            $found = false;
-                                                            foreach ($items as &$item) {
-                                                                if (($item['service_id'] ?? null) === $service->id) {
-                                                                    $item['quantity'] = ($item['quantity'] ?? 1) + 1;
-                                                                    $found = true;
-                                                                    break;
-                                                                }
-                                                            }
-                                                            unset($item);
-                                                            if (! $found) {
-                                                                $items[] = [
-                                                                    'description' => $service->name,
-                                                                    'quantity' => 1,
-                                                                    'unit_price' => $service->price,
-                                                                    'vat_rate' => $service->vat ?? 15,
-                                                                    'product_id' => null,
-                                                                    'service_id' => $service->id,
-                                                                    'discount_percentage' => 0,
-                                                                ];
-                                                            }
-                                                            $set('items', $items);
-                                                            self::updateTotals($get, $set);
-                                                        })
-                                                ])
-                                            ])
-                                            ->columnSpan(1);
-                                    }
-                                    
-                                    return $items;
-                                }
-                            )
-                        ])
-                        ->columnSpan(2),
-
-                    Forms\Components\Section::make('Invoice Line Items')
-                        ->description('Items added to your invoice')
-                        ->icon('heroicon-o-list-bullet')
-                        ->schema([
-                            Forms\Components\Repeater::make('items')
-                                ->relationship()
-                                ->schema([
-                                    Forms\Components\Grid::make(8)->schema([
-                                        Forms\Components\TextInput::make('description')
-                                            ->required()
-                                            ->columnSpan(3)
-                                            ->prefixIcon('heroicon-o-tag'),
-                            
-                                        Forms\Components\Hidden::make('product_id'),
-                                        Forms\Components\Hidden::make('service_id'),
-                                        Forms\Components\Hidden::make('vat_rate'),
-                            
-                                        // --- Add this block for serial selection ---
-                                        Forms\Components\Select::make('product_serial_id')
-                                            ->label('Product Serial')
-                                            ->options(function (Get $get) {
-                                                $productId = $get('product_id');
-                                                if (!$productId) {
-                                                    return [];
+                    Forms\Components\Placeholder::make('items_placeholder')
+                        ->content(function (Get $get) {
+                            $categoryId = $get('category_filter');
+                            if (!$categoryId) {
+                                return 'Select a category to see available items';
+                            }
+                            $products = Product::where('tenant_id', Auth::id())
+                                ->where('category_id', $categoryId)
+                                ->count();
+                            $services = Service::where('tenant_id', Auth::id())
+                                ->where('category_id', $categoryId)
+                                ->count();
+                            $total = $products + $services;
+                            if ($total === 0) {
+                                return '❌ No items available in this category';
+                            }
+                        }),
+                    Forms\Components\Grid::make(4)->schema(
+                        function (Get $get) {
+                            $categoryId = $get('category_filter');
+                            if (!$categoryId) {
+                                return [];
+                            }
+                            $products = Product::where('tenant_id', Auth::id())
+                                ->where('category_id', $categoryId)
+                                ->get();
+                            $services = Service::where('tenant_id', Auth::id())
+                                ->where('category_id', $categoryId)
+                                ->get();
+                            $items = [];
+                            foreach ($products as $product) {
+                                $items[] = Forms\Components\Actions::make([
+                                    Forms\Components\Actions\Action::make("add_product_{$product->id}")
+                                        ->label($product->name)
+                                        ->icon('heroicon-o-shopping-bag')
+                                        ->color('primary')
+                                        ->size('sm')
+                                        ->extraAttributes(['class' => 'hover:scale-105 transition-transform'])
+                                        ->action(function (Get $get, Set $set) use ($product) {
+                                            $items = $get('items') ?? [];
+                                            $found = false;
+                                            foreach ($items as &$item) {
+                                                if (($item['product_id'] ?? null) === $product->id) {
+                                                    $item['quantity'] = ($item['quantity'] ?? 1) + 1;
+                                                    $found = true;
+                                                    break;
                                                 }
-                                                return \App\Models\ProductSerial::where('product_id', $productId)
-                                                    ->pluck('serial_number', 'id');
-                                            })
-                                            ->visible(function (Get $get) {
-                                                return !empty($get('product_id'));
-                                            })
-                                            ->required(function (Get $get) {
-                                                $productId = $get('product_id');
-                                                if (!$productId) {
-                                                    return false;
+                                            }
+                                            unset($item);
+                                            if (! $found) {
+                                                $items[] = [
+                                                    'description' => $product->name,
+                                                    'quantity' => 1,
+                                                    'unit_price' => $product->price,
+                                                    'vat_rate' => $product->vat ?? 15,
+                                                    'product_id' => $product->id,
+                                                    'service_id' => null,
+                                                    'discount_percentage' => 0,
+                                                ];
+                                            }
+                                            $set('items', $items);
+                                            self::updateTotals($get, $set);
+                                        })
+                                ]);
+                            }
+                            foreach ($services as $service) {
+                                $items[] = Forms\Components\Actions::make([
+                                    Forms\Components\Actions\Action::make("add_service_{$service->id}")
+                                        ->label($service->name)
+                                        ->icon('heroicon-o-wrench-screwdriver')
+                                        ->color('success')
+                                        ->size('sm')
+                                        ->extraAttributes(['class' => 'hover:scale-105 transition-transform'])
+                                        ->action(function (Get $get, Set $set) use ($service) {
+                                            $items = $get('items') ?? [];
+                                            $found = false;
+                                            foreach ($items as &$item) {
+                                                if (($item['service_id'] ?? null) === $service->id) {
+                                                    $item['quantity'] = ($item['quantity'] ?? 1) + 1;
+                                                    $found = true;
+                                                    break;
                                                 }
-                                                // Only require if there are serials for this product
-                                                return \App\Models\ProductSerial::where('product_id', $productId)->exists();
-                                            }),
-                                        // --- End serial block ---
-                            
-                                        Forms\Components\TextInput::make('quantity')
-                                            ->required()
-                                            ->numeric()
-                                            ->live()
-                                            ->columnSpan(1)
-                                            ->prefixIcon('heroicon-o-hashtag'),
-                                        Forms\Components\TextInput::make('unit_price')
-                                            ->label('Unit Price')
-                                            ->required()
-                                            ->numeric()
-                                            ->live()
-                                            ->columnSpan(2)
-                                            ->prefixIcon('heroicon-o-currency-dollar'),
-                                        Forms\Components\TextInput::make('discount_percentage')
-                                            ->label('Discount (%)')
-                                            ->numeric()
-                                            ->default(0)
-                                            ->live()
-                                            ->columnSpan(1)
-                                            ->prefixIcon('heroicon-o-tag'),
-                                        Forms\Components\Placeholder::make('total')
-                                            ->label('Line Total')
-                                            ->content(fn(Get $get) => '$' . number_format(($get('quantity') * $get('unit_price')) - (($get('quantity') * $get('unit_price')) * ($get('discount_percentage') / 100)), 2))
-                                            ->columnSpan(1),
-                                    ]),
-                                ])
-                                ->live()
-                                ->afterStateUpdated(fn(Get $get, Set $set) => self::updateTotals($get, $set))
-                                ->deleteAction(fn(Get $get, Set $set) => self::updateTotals($get, $set))
-                                ->itemLabel(fn (array $state): ?string => $state['description'] ?? null)
-                                ->columnSpan(2)
-                                ->defaultItems(0)
-                                ->minItems(0)
-                                ->disableItemCreation(),
-                        ])
-                        ->columnSpan(2),
-
-                    Forms\Components\Section::make('Totals')
-                        ->icon('heroicon-o-calculator')
+                                            }
+                                            unset($item);
+                                            if (! $found) {
+                                                $items[] = [
+                                                    'description' => $service->name,
+                                                    'quantity' => 1,
+                                                    'unit_price' => $service->price,
+                                                    'vat_rate' => $service->vat ?? 15,
+                                                    'product_id' => null,
+                                                    'service_id' => $service->id,
+                                                    'discount_percentage' => 0,
+                                                ];
+                                            }
+                                            $set('items', $items);
+                                            self::updateTotals($get, $set);
+                                        })
+                                ]);
+                            }
+                            return $items;
+                        }
+                    ),
+                    Forms\Components\Repeater::make('items')
+                        ->relationship()
                         ->schema([
-                            Forms\Components\Grid::make(1)->schema([
-                                Forms\Components\TextInput::make('subtotal')
-                                    ->label('Sub Total')
-                                    ->inlineLabel() 
-                                    ->numeric()
-                                    ->readOnly()
-                                    ->prefixIcon('heroicon-o-currency-dollar'),
-
-                                Forms\Components\TextInput::make('total_discount')
-                                    ->label('Total Discount')
-                                    ->inlineLabel() 
-                                    ->numeric()
-                                    ->readOnly()
+                            Forms\Components\Grid::make(8)->schema([
+                                Forms\Components\TextInput::make('description')
+                                    ->label('Item Name')
+                                    ->required()
+                                    ->columnSpan(3)
                                     ->prefixIcon('heroicon-o-tag'),
-
-                                Forms\Components\TextInput::make('taxable_amount')
-                                    ->label('Taxable Amount')
-                                    ->inlineLabel() 
+                                Forms\Components\Hidden::make('product_id'),
+                                Forms\Components\Hidden::make('service_id'),
+                                Forms\Components\Hidden::make('vat_rate'),
+                                Forms\Components\Select::make('product_serial_id')
+                                    ->label('Product Serial')
+                                    ->options(function (Get $get) {
+                                        $productId = $get('product_id');
+                                        if (!$productId) {
+                                            return [];
+                                        }
+                                        return \App\Models\ProductSerial::where('product_id', $productId)
+                                            ->pluck('serial_number', 'id');
+                                    })
+                                    ->visible(function (Get $get) {
+                                        return !empty($get('product_id'));
+                                    })
+                                    ->required(function (Get $get) {
+                                        $productId = $get('product_id');
+                                        if (!$productId) {
+                                            return false;
+                                        }
+                                        return \App\Models\ProductSerial::where('product_id', $productId)->exists();
+                                    }),
+                                Forms\Components\TextInput::make('quantity')
+                                    ->required()
                                     ->numeric()
-                                    ->readOnly()
-                                    ->prefixIcon('heroicon-o-calculator'),
-
-                                Forms\Components\TextInput::make('total_tax')
-                                    ->label('Total VAT')
-                                    ->inlineLabel() 
+                                    ->live()
+                                    ->columnSpan(1)
+                                    ->prefixIcon('heroicon-o-hashtag'),
+                                Forms\Components\TextInput::make('unit_price')
+                                    ->label('Unit Price')
+                                    ->required()
                                     ->numeric()
-                                    ->readOnly()
-                                    ->prefixIcon('heroicon-o-calculator'),
-
-                                Forms\Components\TextInput::make('total')
-                                    ->label('Total') 
-                                    ->inlineLabel() // <-- Add this
+                                    ->live()
+                                    ->columnSpan(2)
+                                    ->prefixIcon('heroicon-o-currency-dollar'),
+                                Forms\Components\TextInput::make('discount_percentage')
+                                    ->label('Discount (%)')
                                     ->numeric()
-                                    ->readOnly()
-                                    ->prefixIcon('heroicon-o-currency-dollar')
-                                    ->extraAttributes(['class' => 'font-bold text-lg']),
+                                    ->default(0)
+                                    ->live()
+                                    ->columnSpan(1)
+                                    ->prefixIcon('heroicon-o-tag'),
+                                Forms\Components\Placeholder::make('total')
+                                    ->label('Line Total')
+                                    ->content(fn(Get $get) => '$' . number_format(($get('quantity') * $get('unit_price')) - (($get('quantity') * $get('unit_price')) * ($get('discount_percentage') / 100)), 2))
+                                    ->columnSpan(1),
                             ]),
                         ])
-                        ->columns(1)
-                        ->columnSpan(2),
-
-                    Forms\Components\Section::make('Additional Information')
-                        ->description('Notes and terms for the invoice')
-                        ->icon('heroicon-o-document-text')
-                        ->schema([
-                            Forms\Components\Textarea::make('notes')
-                                ->label('Notes')
-                                ->placeholder('Add any additional notes here...')
-                                ->rows(3),
-                        ])->columns(1),
-                ]),
+                        ->live()
+                        ->afterStateUpdated(fn(Get $get, Set $set) => self::updateTotals($get, $set))
+                        ->deleteAction(fn(Get $get, Set $set) => self::updateTotals($get, $set))
+                        ->itemLabel(fn (array $state): ?string => $state['description'] ?? null)
+                        ->columnSpan(2)
+                        ->defaultItems(0)
+                        ->minItems(0)
+                        ->disableItemCreation(),
+                    Forms\Components\Textarea::make('notes')
+                        ->label('Notes')
+                        ->placeholder('Add any additional notes here...')
+                        ->rows(3)
+                        ->columnSpan(3),
+                    Forms\Components\Grid::make(1)->schema([
+                        Forms\Components\TextInput::make('subtotal')
+                            ->label('Sub Total')
+                            ->inlineLabel() 
+                            ->numeric()
+                            ->readOnly()
+                            ->prefixIcon('heroicon-o-currency-dollar'),
+                        Forms\Components\TextInput::make('total_discount')
+                            ->label('Discount')
+                            ->inlineLabel() 
+                            ->numeric()
+                            ->readOnly()
+                            ->prefixIcon('heroicon-o-tag'),
+                        Forms\Components\TextInput::make('taxable_amount')
+                            ->label('Taxable Amount')
+                            ->inlineLabel() 
+                            ->numeric()
+                            ->readOnly()
+                            ->prefixIcon('heroicon-o-calculator'),
+                        Forms\Components\TextInput::make('total_tax')
+                            ->label('VAT')
+                            ->inlineLabel() 
+                            ->numeric()
+                            ->readOnly()
+                            ->prefixIcon('heroicon-o-calculator'),
+                        Forms\Components\TextInput::make('total')
+                            ->label('Total') 
+                            ->inlineLabel()
+                            ->numeric()
+                            ->readOnly()
+                            ->prefixIcon('heroicon-o-currency-dollar')
+                            ->extraAttributes(['class' => 'font-bold text-lg']),
+                    ]),
+                  
+                ])->columns(2),
         ]);
     }
 
@@ -357,7 +290,7 @@ class InvoiceResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->where('tenant_id', Auth::user()->id);
+        return parent::getEloquentQuery()->where('tenant_id', Auth::id());
     }
 
     public static function getPages(): array

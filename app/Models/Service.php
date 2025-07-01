@@ -16,6 +16,7 @@ class Service extends Model implements HasName
         'category_id',
         'name',
         'description',
+        'code',
         'price',
         'is_active',
         'vat',
