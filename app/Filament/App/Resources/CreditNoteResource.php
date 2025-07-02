@@ -115,26 +115,26 @@ class CreditNoteResource extends Resource
                         ->live()
                         ->afterStateUpdated(fn(Get $get, Set $set) => self::updateTotals($get, $set)),
                     Forms\Components\Grid::make(4)->schema([
-                        Forms\Components\TextInput::make('subtotal')
-                            ->label('Sub Total')
-                            ->numeric()
-                            ->readOnly()
-                            ->prefixIcon('heroicon-o-currency-dollar'),
-                        Forms\Components\TextInput::make('total_discount')
-                            ->label('Discount')
-                            ->numeric()
-                            ->readOnly()
-                            ->prefixIcon('heroicon-o-tag'),
-                        Forms\Components\TextInput::make('tax_amount')
-                            ->label('VAT')
-                            ->numeric()
-                            ->readOnly()
-                            ->prefixIcon('heroicon-o-calculator'),
-                        Forms\Components\TextInput::make('total')
-                            ->numeric()
-                            ->readOnly()
-                            ->prefixIcon('heroicon-o-currency-dollar')
-                            ->extraAttributes(['class' => 'font-bold text-lg']),
+                            Forms\Components\TextInput::make('subtotal')
+                                ->label('Sub Total')
+                                ->numeric()
+                                ->readOnly()
+                                ->prefixIcon('heroicon-o-currency-dollar'),
+                            Forms\Components\TextInput::make('total_discount')
+                                ->label('Discount')
+                                ->numeric()
+                                ->readOnly()
+                                ->prefixIcon('heroicon-o-tag'),
+                            Forms\Components\TextInput::make('tax_amount')
+                                ->label('VAT')
+                                ->numeric()
+                                ->readOnly()
+                                ->prefixIcon('heroicon-o-calculator'),
+                            Forms\Components\TextInput::make('total')
+                                ->numeric()
+                                ->readOnly()
+                                ->prefixIcon('heroicon-o-currency-dollar')
+                                ->extraAttributes(['class' => 'font-bold text-lg']),
                     ]),
                 ]),
             ]);
