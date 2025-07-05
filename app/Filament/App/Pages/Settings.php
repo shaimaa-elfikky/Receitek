@@ -35,11 +35,11 @@ use Modules\Accounting\Models\FinancialAccountTranslation;
 
 use Filament\Forms\Contracts\HasForms;
 
-class BusinessSettingPage extends Page implements HasForms
+class Settings extends Page implements HasForms
 {
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
     protected static ?string $slug = 'settings';
-    protected static string $view = 'filament.app.pages.business-setting-page';
+    protected static string $view = 'filament.app.pages.settings';
 
 
 
@@ -162,77 +162,6 @@ class BusinessSettingPage extends Page implements HasForms
                                 ]),
 
                         ]),
-
-                    Section::make('brand_information')
-                        ->heading(__('Brand Information'))
-                        ->columns(3)
-                        ->schema([
-                            Group::
-                                make([
-                                    TextInput::make('english_brand_name')
-                                        ->label(__('English Name'))
-                                        ->required(),
-                                    TextInput::make('arabic_brand_name')
-                                        ->label(__('Arabic Name'))
-                                        ->required(),
-                                ])
-                                ->columns(3)
-                                ->columnSpan(3),
-                            Fieldset::make(__('Location'))
-                                ->columns(3)
-                                ->schema([
-                                    Checkbox::make('location_same_as_business')
-                                        ->label(__('Same As Above'))
-                                        ->live()
-                                        ->columnSpan(3)
-                                        ->afterStateUpdated(function ($state, Set $set, Get $get) {
-                                            if ($state) {
-                                                $set('brand_country', $get('business_country'));
-                                                $set('brand_city', $get('business_city'));
-                                                $set('brand_address', $get('business_address'));
-                                            }
-                                        }),
-                                    TextInput::make('brand_country')
-                                        ->label(__('Country'))
-                                        ->required()
-                                        ->reactive(),
-                                    TextInput::make('brand_city')
-                                        ->label(__('City'))
-                                        ->required()
-                                        ->reactive(),
-                                    Textarea::make('brand_address')
-                                        ->label(__('Address'))
-                                        ->required()
-                                        ->reactive(),
-                                ]),
-                            Fieldset::make(__('Contact'))
-                                ->columns(3)
-                                ->schema([
-                                    Checkbox::make('contact_same_as_business')
-                                        ->label(__('Same As Above'))
-                                        ->live()
-                                        ->columnSpan(3)
-                                        ->afterStateUpdated(function ($state, Set $set, Get $get) {
-                                            if ($state) {
-                                                $set('brand_contact_name', $get('business_contact_name'));
-                                                $set('brand_contact_phone', $get('business_contact_phone'));
-                                                $set('brand_contact_email', $get('business_contact_email'));
-                                            }
-                                        }),
-                                    TextInput::make('brand_contact_name')
-                                        ->label(__('Name'))
-                                        ->required()
-                                        ->reactive(),
-                                    TextInput::make('brand_contact_phone')
-                                        ->label(__('Phone'))
-                                        ->required()
-                                        ->reactive(),
-                                    TextInput::make('brand_contact_email')
-                                        ->label(__('Email'))
-                                        ->required()
-                                        ->reactive(),
-                                ]),
-                        ]),
                           Section::make('vat_information')
                     ->heading(__('Tax Information'))
                     ->schema([
@@ -266,10 +195,6 @@ class BusinessSettingPage extends Page implements HasForms
                                         "between:0,100",
                                     ])
                                     ->required(),
-
-                                Toggle::make('included')
-                                    ->label(__('Tax Included'))
-                                    ->inline(false),
                             ]),
                     ]),
 

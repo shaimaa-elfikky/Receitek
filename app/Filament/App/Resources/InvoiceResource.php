@@ -17,6 +17,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rules\Unique;
 
 class InvoiceResource extends Resource
 {
@@ -34,10 +35,23 @@ class InvoiceResource extends Resource
                         ->options(Client::where('tenant_id', Auth::id())->pluck('name_en', 'id'))
                         ->searchable()
                         ->required()
+                        ->live()
+                        ->afterStateUpdated(function (Get $get, Set $set) {
+                            $clientId = $get('client_id');
+                            if (!$clientId) {
+                                $set('invoice_number', null);
+                                return;
+                            }
+                            $nextInvoiceNumber = Invoice::where('client_id', $clientId)
+                                ->where('tenant_id', Auth::id())
+                                ->count() + 1;
+
+                            $set('invoice_number', 'INV-' . str_pad($nextInvoiceNumber, 4, '0', STR_PAD_LEFT));
+                        })
                         ->prefixIcon('heroicon-o-user'),
                     Forms\Components\TextInput::make('invoice_number')
-                        ->default('INV-' . str_pad(Invoice::max('id') + 1, 4, '0', STR_PAD_LEFT))
                         ->required()
+                        ->unique(modifyRuleUsing: fn (Unique $rule) => $rule->where('tenant_id', Auth::id()), ignoreRecord: true)
                         ->prefixIcon('heroicon-o-hashtag'),
                     Forms\Components\DatePicker::make('issue_date')
                         ->default(now())
@@ -71,7 +85,7 @@ class InvoiceResource extends Resource
                                 return '❌ No items available in this category';
                             }
                         }),
-                    Forms\Components\Grid::make(4)->schema(
+                    Forms\Components\Grid::make(8)->schema(
                         function (Get $get) {
                             $categoryId = $get('category_filter');
                             if (!$categoryId) {
@@ -91,7 +105,7 @@ class InvoiceResource extends Resource
                                         ->icon('heroicon-o-shopping-bag')
                                         ->color('primary')
                                         ->size('sm')
-                                        ->extraAttributes(['class' => 'hover:scale-105 transition-transform'])
+                                        ->extraAttributes(['class' => 'hover:scale-105 transition-transform px-1 py-1 text-xs'])
                                         ->action(function (Get $get, Set $set) use ($product) {
                                             $items = $get('items') ?? [];
                                             $found = false;
@@ -112,6 +126,7 @@ class InvoiceResource extends Resource
                                                     'product_id' => $product->id,
                                                     'service_id' => null,
                                                     'discount_percentage' => 0,
+                                                    'vat_included_value' => $product->vat_included ?? false,
                                                 ];
                                             }
                                             $set('items', $items);
@@ -126,7 +141,7 @@ class InvoiceResource extends Resource
                                         ->icon('heroicon-o-wrench-screwdriver')
                                         ->color('success')
                                         ->size('sm')
-                                        ->extraAttributes(['class' => 'hover:scale-105 transition-transform'])
+                                        ->extraAttributes(['class' => 'hover:scale-105 transition-transform px-1 py-1 text-xs'])
                                         ->action(function (Get $get, Set $set) use ($service) {
                                             $items = $get('items') ?? [];
                                             $found = false;
@@ -147,6 +162,7 @@ class InvoiceResource extends Resource
                                                     'product_id' => null,
                                                     'service_id' => $service->id,
                                                     'discount_percentage' => 0,
+                                                    'vat_included_value' => $service->vat_included ?? false,
                                                 ];
                                             }
                                             $set('items', $items);
@@ -156,20 +172,21 @@ class InvoiceResource extends Resource
                             }
                             return $items;
                         }
-                    ),
+                    )->columns(8)->columnSpan('full')->extraAttributes(['class' => 'gap-1']),
                     Forms\Components\Repeater::make('items')
                         ->relationship()
                         ->columnSpanFull()
                         ->schema([
-                            Forms\Components\Grid::make(9)->schema([
+                            Forms\Components\Grid::make(8)->schema([
                                 Forms\Components\TextInput::make('description')
                                     ->label('Item Name')
                                     ->required()
-                                    ->columnSpan(3)
+                                    ->columnSpan(2)
                                     ->prefixIcon('heroicon-o-tag'),
                                 Forms\Components\Hidden::make('product_id'),
                                 Forms\Components\Hidden::make('service_id'),
                                 Forms\Components\Hidden::make('vat_rate'),
+                                Forms\Components\Hidden::make('vat_included_value'),
                                 Forms\Components\Select::make('product_serial_id')
                                     ->label('Product Serial')
                                     ->options(function (Get $get) {
@@ -189,7 +206,8 @@ class InvoiceResource extends Resource
                                             return false;
                                         }
                                         return \App\Models\ProductSerial::where('product_id', $productId)->exists();
-                                    }),
+                                    })
+                                    ->columnSpan(1),
                                 Forms\Components\TextInput::make('quantity')
                                     ->required()
                                     ->numeric()
@@ -201,7 +219,8 @@ class InvoiceResource extends Resource
                                     ->required()
                                     ->numeric()
                                     ->live()
-                                    ->columnSpan(2)
+                                    ->readOnly()
+                                    ->columnSpan(1)
                                     ->prefixIcon('heroicon-o-currency-dollar'),
                                 Forms\Components\TextInput::make('discount_percentage')
                                     ->label('Discount (%)')
@@ -210,9 +229,46 @@ class InvoiceResource extends Resource
                                     ->live()
                                     ->columnSpan(1)
                                     ->prefixIcon('heroicon-o-tag'),
+                                Forms\Components\Placeholder::make('taxable_amount')
+                                    ->label('Taxable Amount')
+                                    ->content(function(Get $get) {
+                                        $quantity = $get('quantity') ?? 0;
+                                        $unitPrice = $get('unit_price') ?? 0;
+                                        $discountPercentage = $get('discount_percentage') ?? 0;
+                                        $vatRate = $get('vat_rate') ?? 0;
+                                        $vatIncluded = $get('vat_included_value') ?? false;
+                                        $lineTotal = $quantity * $unitPrice;
+                                        $discountAmount = $lineTotal * ($discountPercentage / 100);
+                                        $priceAfterDiscount = $lineTotal - $discountAmount;
+                                        if ($vatIncluded) {
+                                            $taxPercentage = ($vatRate === 'exempt' || $vatRate === null) ? 0 : (float)$vatRate / 100;
+                                            $taxableAmount = $taxPercentage > 0 ? floor(($priceAfterDiscount / (1 + $taxPercentage)) * 100) / 100 : $priceAfterDiscount;
+                                        } else {
+                                            $taxableAmount = $priceAfterDiscount;
+                                        }
+                                        return '$' . number_format($taxableAmount, 2);
+                                    })
+                                    ->columnSpan(1),
                                 Forms\Components\Placeholder::make('total')
                                     ->label('Total')
-                                    ->content(fn(Get $get) => '$' . number_format(($get('quantity') * $get('unit_price')) - (($get('quantity') * $get('unit_price')) * ($get('discount_percentage') / 100)), 2))
+                                    ->content(function(Get $get) {
+                                        $quantity = $get('quantity') ?? 0;
+                                        $unitPrice = $get('unit_price') ?? 0;
+                                        $discountPercentage = $get('discount_percentage') ?? 0;
+                                        $vatRate = $get('vat_rate') ?? 0;
+                                        $vatIncluded = $get('vat_included_value') ?? false;
+                                        $lineTotal = $quantity * $unitPrice;
+                                        $discountAmount = $lineTotal * ($discountPercentage / 100);
+                                        $priceAfterDiscount = $lineTotal - $discountAmount;
+                                        $taxPercentage = ($vatRate === 'exempt' || $vatRate === null) ? 0 : (float)$vatRate / 100;
+                                        if ($vatIncluded) {
+                                            $total = $priceAfterDiscount;
+                                        } else {
+                                            $taxAmount = $priceAfterDiscount * $taxPercentage;
+                                            $total = $priceAfterDiscount + $taxAmount;
+                                        }
+                                        return '$' . number_format($total, 2);
+                                    })
                                     ->columnSpan(1),
                             ]),
                         ])
@@ -234,30 +290,35 @@ class InvoiceResource extends Resource
                             ->inlineLabel() 
                             ->numeric()
                             ->readOnly()
+                            ->disabled()
                             ->prefixIcon('heroicon-o-currency-dollar'),
                         Forms\Components\TextInput::make('total_discount')
                             ->label('Discount')
                             ->inlineLabel() 
                             ->numeric()
                             ->readOnly()
+                            ->disabled()
                             ->prefixIcon('heroicon-o-tag'),
                         Forms\Components\TextInput::make('taxable_amount')
                             ->label('Taxable Amount')
                             ->inlineLabel() 
                             ->numeric()
                             ->readOnly()
+                            ->disabled()
                             ->prefixIcon('heroicon-o-calculator'),
                         Forms\Components\TextInput::make('total_tax')
                             ->label('VAT')
                             ->inlineLabel() 
                             ->numeric()
                             ->readOnly()
+                            ->disabled()
                             ->prefixIcon('heroicon-o-calculator'),
                         Forms\Components\TextInput::make('total')
                             ->label('Total') 
                             ->inlineLabel()
                             ->numeric()
                             ->readOnly()
+                            ->disabled()
                             ->prefixIcon('heroicon-o-currency-dollar')
                             ->extraAttributes(['class' => 'font-bold text-lg']),
                     ]),
@@ -284,6 +345,7 @@ class InvoiceResource extends Resource
 
         $set('subtotal', number_format($totals['subtotal'], 2, '.', ''));
         $set('total_discount', number_format($totals['total_discount'], 2, '.', ''));
+        $set('taxable_amount', number_format($totals['taxable_amount'], 2, '.', ''));
         $set('total_tax', number_format($totals['total_tax'], 2, '.', ''));
         $set('total', number_format($totals['total'], 2, '.', ''));
     }

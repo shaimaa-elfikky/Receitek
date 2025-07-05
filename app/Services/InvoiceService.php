@@ -18,6 +18,7 @@ class InvoiceService
         $subTotal = 0;
         $totalDiscount = 0;
         $totalTax = 0;
+        $taxableAmount = 0;
 
         foreach ($items as $item) {
             $lineTotal = ($item['quantity'] * $item['unit_price']);
@@ -34,10 +35,12 @@ class InvoiceService
                 // We need to calculate the VAT amount from the price after discount
                 $taxAmount = $priceAfterDiscount - ($priceAfterDiscount / (1 + $taxPercentage));
                 $subTotal += $priceAfterDiscount - $taxAmount; // Add price without VAT to subtotal
+                $taxableAmount += $priceAfterDiscount - $taxAmount; // Taxable amount is price without VAT
             } else {
                 // If VAT is not included, add VAT on top
                 $taxAmount = $priceAfterDiscount * $taxPercentage;
                 $subTotal += $priceAfterDiscount; // Add full price to subtotal
+                $taxableAmount += $priceAfterDiscount; // Taxable amount is the full price
             }
             
             $totalDiscount += $discountAmount;
@@ -47,6 +50,7 @@ class InvoiceService
         return [
             'subtotal' => $subTotal,
             'total_discount' => $totalDiscount,
+            'taxable_amount' => $taxableAmount,
             'total_tax' => $totalTax,
             'total' => $subTotal + $totalTax,
         ];

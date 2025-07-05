@@ -56,7 +56,6 @@ class ProductResource extends Resource
                     ->maxLength(255),
                 Forms\Components\TextInput::make('serial_numbers')
                     ->label('Serial Numbers (Comma Separated)')
-                    ->required()
                     ->helperText('Enter serial numbers separated by commas. Example: SN001, SN002, SN003')
                     ->dehydrated(false),
                 Forms\Components\TextInput::make('sku')
